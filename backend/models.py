@@ -1,8 +1,86 @@
 # Models pour le système de professions et progression
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 from typing import List, Dict, Optional, Any
 from datetime import datetime, timezone
 import uuid
+
+# User models
+class User(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    email: EmailStr
+    name: Optional[str] = None
+    role: str = "user"
+    settings: Optional[Dict] = {}
+    profession_slug: Optional[str] = None
+    profession_label: Optional[str] = None
+    profession_icon: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    has_paid: bool = False
+    xp_total: int = 0
+    level_number: int = 1
+
+class HabitLog(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    date: datetime
+    water_ml: float = 0
+    sleep_h: float = 0
+    nutrition_score_0_100: int = 0
+    activity_min: float = 0
+    serenity_min: float = 0
+    mood_1_10: int = 5
+    stress_0_10: int = 5
+    notes: Optional[str] = None
+
+class Quest(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    description: str
+    type: str  # daily, weekly, special
+    points_reward: int
+    badge_id: Optional[str] = None
+    branch: Optional[str] = None  # stress, sleep, hydration, strength, resilience
+    is_global: bool = True
+    is_active: bool = True
+
+class UserQuest(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    quest_id: str
+    date_assigned: datetime
+    status: str = "todo"  # todo, in_progress, done
+    completed_at: Optional[datetime] = None
+
+class Badge(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    code: str
+    label: str
+    description: str
+    icon: str
+
+class UserBadge(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    badge_id: str
+    earned_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class Quote(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    text: str
+    author: Optional[str] = None
+
+class PaymentTransaction(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    session_id: str
+    user_email: str
+    amount: float
+    currency: str = "EUR"
+    status: str = "pending"
+    payment_status: str = "pending"
+    metadata: Optional[Dict] = {}
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+# Profession models
 
 class Profession(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
