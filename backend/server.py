@@ -1424,6 +1424,74 @@ async def get_user_profession_quests(user_id: str):
         logger.error(f"Error getting profession quests: {str(e)}")
         raise HTTPException(status_code=500, detail="Error retrieving profession quests")
 
+# ------------- USER DEMO ENDPOINT -------------
+@api_router.get("/user/me")
+async def user_me():
+    try:
+        demo_mode = os.environ.get("DEMO_MODE", "false").lower() == "true"
+        if not demo_mode:
+            raise HTTPException(status_code=501, detail="Implement auth-backed /api/user/me for production")
+
+        demo_user_id = os.environ.get("DEMO_USER_ID", "demo-user")
+        demo_email = os.environ.get("DEMO_USER_EMAIL", "demo@discipline90.com")
+        default_prof = os.environ.get("DEMO_USER_PROFESSION", "infirmier")
+
+        user = await db.users.find_one({"id": demo_user_id})
+        if not user:
+            # fetch profession info
+            prof = await profession_service.get_profession_by_slug(default_prof)
+            prof_label = (prof or {}).get("label", default_prof)
+            prof_icon = (prof or {}).get("icon", "🩺")
+            user = {
+                "id": demo_user_id,
+                "email": demo_email,
+                "profession_slug": default_prof,
+                "profession_label": prof_label,
+                "profession_icon": prof_icon,
+                "created_at": datetime.now(timezone.utc)
+            }
+            await db.users.insert_one(user)
+            await profession_service.init_user_progression(demo_user_id, default_prof)
+        else:
+            # Ensure profession fields are present
+            if not user.get("profession_slug"):
+                await db.users.update_one({"id": demo_user_id}, {"$set": {"profession_slug": default_prof}})
+
+        # Assign quests idempotently
+        try:
+            await assign_profession_quests(user.get("profession_slug", default_prof), demo_user_id, idempotent=True)
+        except Exception as _:
+            pass
+
+        # Progression snapshot
+        prog = await profession_service.get_user_progression(demo_user_id)
+        progression_niveau = prog.get("niveau_actuel", 1) if prog else 1
+        progression_xp = int(min(100, prog.get("xp_total", 0) % 100)) if prog else 0
+
+        # Refresh user to include label/icon if missing
+        if not user.get("profession_label") or not user.get("profession_icon"):
+            prof = await profession_service.get_profession_by_slug(user.get("profession_slug", default_prof))
+            await db.users.update_one({"id": demo_user_id}, {"$set": {
+                "profession_label": (prof or {}).get("label"),
+                "profession_icon": (prof or {}).get("icon")
+            }})
+            user = await db.users.find_one({"id": demo_user_id})
+
+        return {
+            "id": user["id"],
+            "email": user.get("email", demo_email),
+            "profession_slug": user.get("profession_slug"),
+            "profession_label": user.get("profession_label"),
+            "profession_icon": user.get("profession_icon"),
+            "progression_niveau": progression_niveau,
+            "progression_xp": progression_xp
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"/user/me error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error retrieving user")
+
 # ------------- ADMIN CRUD (simple) -------------
 @api_router.get("/admin/professions")
 async def admin_list_professions(request: Request):
