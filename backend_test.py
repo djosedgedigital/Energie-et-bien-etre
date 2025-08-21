@@ -1131,6 +1131,7 @@ class WellnessAppTester:
         print("\n🔐 Admin CRUD Tests:")
         self.test_admin_professions_crud()
         self.test_admin_quests_crud()
+        self.test_admin_quest_preference()
         self.test_admin_utility_endpoints()
         
         # Professions system tests (NEW - HIGH PRIORITY)
