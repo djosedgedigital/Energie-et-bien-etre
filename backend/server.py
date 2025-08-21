@@ -838,11 +838,20 @@ async def assign_profession_quests(slug: str, user_id: str, idempotent: bool = F
         quests = profession.get("recommended_quests", [])
         user_quests_docs = []
         for q in quests:
+            quest_id = f"prof_{slug}_{q['title'].lower().replace(' ', '_')}"
+            # Skip if idempotent and already exists
+            if idempotent:
+                existing = await db.user_profession_quests.find_one({
+                    "user_id": user_id,
+                    "quest_id": quest_id
+                })
+                if existing:
+                    continue
             uq = {
                 "id": str(uuid.uuid4()),
                 "user_id": user_id,
                 "profession_slug": slug,
-                "quest_id": f"prof_{slug}_{q['title'].lower().replace(' ', '_')}",
+                "quest_id": quest_id,
                 "title": q.get("title"),
                 "description": q.get("description"),
                 "points_reward": q.get("points_reward", 0),
