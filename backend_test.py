@@ -468,6 +468,232 @@ class WellnessAppTester:
         self.log_test("Implicit Assignment Check", True, "User creation properly triggered profession setup")
         return success
 
+    def test_phase2_idempotent_assignment_flow(self):
+        """Test Phase 2 Review Request: A) Idempotent assignment flow"""
+        print("\n🔄 Testing Phase 2 Idempotent Assignment Flow:")
+        
+        # 1) Create user: POST /api/users {"email":"p2a@example.com","name":"P2A","profession_slug":"infirmier"}
+        success, response = self.run_test(
+            "Create P2A User",
+            "POST",
+            "users",
+            200,
+            data={"email": "p2a@example.com", "name": "P2A", "profession_slug": "infirmier"}
+        )
+        
+        if not success or not response.get('id'):
+            return self.log_test("Phase2 Idempotent Flow", False, "Failed to create P2A user")
+        
+        user_id = response['id']
+        print(f"   Created user with ID: {user_id}")
+        
+        # 2) POST /api/professions/infirmier/assign-quests/{user_id}?idempotent=true → expect {assigned: N >= 1}
+        success, response = self.run_test(
+            "First Idempotent Assignment",
+            "POST",
+            f"professions/infirmier/assign-quests/{user_id}?idempotent=true",
+            200
+        )
+        
+        if not success:
+            return self.log_test("Phase2 Idempotent Flow", False, "First idempotent assignment failed")
+        
+        first_assigned = response.get('assigned', 0)
+        if first_assigned < 1:
+            return self.log_test("Phase2 Idempotent Flow", False, f"Expected assigned >= 1, got {first_assigned}")
+        
+        print(f"   First assignment: {first_assigned} quests assigned")
+        
+        # 3) Repeat the same POST with idempotent=true → expect {assigned: 0}
+        success, response = self.run_test(
+            "Second Idempotent Assignment",
+            "POST",
+            f"professions/infirmier/assign-quests/{user_id}?idempotent=true",
+            200
+        )
+        
+        if not success:
+            return self.log_test("Phase2 Idempotent Flow", False, "Second idempotent assignment failed")
+        
+        second_assigned = response.get('assigned', -1)
+        if second_assigned != 0:
+            return self.log_test("Phase2 Idempotent Flow", False, f"Expected assigned = 0 on repeat, got {second_assigned}")
+        
+        print(f"   Second assignment: {second_assigned} quests assigned (idempotent working)")
+        
+        return self.log_test("Phase2 Idempotent Assignment Flow", True, f"First: {first_assigned}, Second: {second_assigned}")
+
+    def test_phase2_complete_profession_quest_flow(self):
+        """Test Phase 2 Review Request: B) Complete a profession quest"""
+        print("\n✅ Testing Phase 2 Complete Profession Quest Flow:")
+        
+        # Create a user for this test
+        test_email = f"p2b_{int(time.time())}@example.com"
+        success, response = self.run_test(
+            "Create P2B User",
+            "POST",
+            "users",
+            200,
+            data={"email": test_email, "name": "P2B", "profession_slug": "infirmier"}
+        )
+        
+        if not success or not response.get('id'):
+            return self.log_test("Phase2 Quest Completion Flow", False, "Failed to create P2B user")
+        
+        user_id = response['id']
+        print(f"   Created user with ID: {user_id}")
+        
+        # 4) First, fetch GET /api/professions/infirmier/quests → pick the first quest title
+        success, response = self.run_test(
+            "Fetch Profession Quests",
+            "GET",
+            "professions/infirmier/quests",
+            200
+        )
+        
+        if not success or not response or len(response) == 0:
+            return self.log_test("Phase2 Quest Completion Flow", False, "Failed to fetch profession quests")
+        
+        first_quest = response[0]
+        quest_title = first_quest.get('title', '')
+        if not quest_title:
+            return self.log_test("Phase2 Quest Completion Flow", False, "First quest has no title")
+        
+        # quest_id format: prof_infirmier_<title_with_underscores>
+        quest_id = f"prof_infirmier_{quest_title.lower().replace(' ', '_')}"
+        print(f"   Using quest: '{quest_title}' with ID: {quest_id}")
+        
+        # 5) POST /api/quests/{quest_id}/complete with body {"user_id":"<user_id>"} 
+        success, response = self.run_test(
+            "Complete Quest First Time",
+            "POST",
+            f"quests/{quest_id}/complete",
+            200,
+            data={"user_id": user_id}
+        )
+        
+        if not success:
+            return self.log_test("Phase2 Quest Completion Flow", False, "Failed to complete quest first time")
+        
+        # Check response structure: expect awarded_xp, new_progression_xp (0-100), level_up (bool)
+        required_fields = ['awarded_xp', 'new_progression_xp', 'level_up']
+        missing_fields = [field for field in required_fields if field not in response]
+        
+        if missing_fields:
+            return self.log_test("Quest Completion Response Structure", False, f"Missing fields: {missing_fields}")
+        
+        first_awarded_xp = response.get('awarded_xp', 0)
+        first_progression_xp = response.get('new_progression_xp', -1)
+        first_level_up = response.get('level_up', False)
+        
+        print(f"   First completion: awarded_xp={first_awarded_xp}, new_progression_xp={first_progression_xp}, level_up={first_level_up}")
+        
+        # Validate progression_xp is in range 0-100
+        if not (0 <= first_progression_xp <= 100):
+            return self.log_test("Quest Completion XP Range", False, f"new_progression_xp should be 0-100, got {first_progression_xp}")
+        
+        # 6) Repeat the POST once more → expect awarded_xp: 0, same or similar new_progression_xp (no double award)
+        success, response = self.run_test(
+            "Complete Quest Second Time",
+            "POST",
+            f"quests/{quest_id}/complete",
+            200,
+            data={"user_id": user_id}
+        )
+        
+        if not success:
+            return self.log_test("Phase2 Quest Completion Flow", False, "Failed to complete quest second time")
+        
+        second_awarded_xp = response.get('awarded_xp', -1)
+        second_progression_xp = response.get('new_progression_xp', -1)
+        second_level_up = response.get('level_up', False)
+        
+        print(f"   Second completion: awarded_xp={second_awarded_xp}, new_progression_xp={second_progression_xp}, level_up={second_level_up}")
+        
+        # Check no double award
+        if second_awarded_xp != 0:
+            return self.log_test("Quest Double Completion Check", False, f"Expected awarded_xp=0 on repeat, got {second_awarded_xp}")
+        
+        # progression_xp should be same or similar (allowing for small variations)
+        xp_diff = abs(second_progression_xp - first_progression_xp)
+        if xp_diff > 5:  # Allow small variations
+            return self.log_test("Quest Progression XP Consistency", False, f"XP changed too much: {first_progression_xp} -> {second_progression_xp}")
+        
+        return self.log_test("Phase2 Quest Completion Flow", True, f"First: {first_awarded_xp}xp, Second: {second_awarded_xp}xp (no double award)")
+
+    def test_phase2_full_progression_endpoint(self):
+        """Test Phase 2 Review Request: C) Full progression endpoint"""
+        print("\n📊 Testing Phase 2 Full Progression Endpoint:")
+        
+        # Create a user for this test
+        test_email = f"p2c_{int(time.time())}@example.com"
+        success, response = self.run_test(
+            "Create P2C User",
+            "POST",
+            "users",
+            200,
+            data={"email": test_email, "name": "P2C", "profession_slug": "infirmier"}
+        )
+        
+        if not success or not response.get('id'):
+            return self.log_test("Phase2 Full Progression Flow", False, "Failed to create P2C user")
+        
+        user_id = response['id']
+        print(f"   Created user with ID: {user_id}")
+        
+        # 7) GET /api/professions/infirmier/progression/full?user_id=<user_id>
+        success, response = self.run_test(
+            "Get Full Progression",
+            "GET",
+            f"professions/infirmier/progression/full?user_id={user_id}",
+            200
+        )
+        
+        if not success:
+            return self.log_test("Phase2 Full Progression Flow", False, "Failed to get full progression")
+        
+        # Check response structure: expect profession_label, profession_icon, progression_niveau, progression_xp, next_objective (string), tier_max
+        required_fields = ['profession_label', 'profession_icon', 'progression_niveau', 'progression_xp', 'next_objective', 'tier_max']
+        missing_fields = [field for field in required_fields if field not in response]
+        
+        if missing_fields:
+            return self.log_test("Full Progression Response Structure", False, f"Missing fields: {missing_fields}")
+        
+        profession_label = response.get('profession_label', '')
+        profession_icon = response.get('profession_icon', '')
+        progression_niveau = response.get('progression_niveau', 0)
+        progression_xp = response.get('progression_xp', -1)
+        next_objective = response.get('next_objective', '')
+        tier_max = response.get('tier_max', 0)
+        
+        print(f"   profession_label: '{profession_label}'")
+        print(f"   profession_icon: '{profession_icon}'")
+        print(f"   progression_niveau: {progression_niveau}")
+        print(f"   progression_xp: {progression_xp}")
+        print(f"   next_objective: '{next_objective}'")
+        print(f"   tier_max: {tier_max}")
+        
+        # Validate values
+        if not profession_label:
+            return self.log_test("Full Progression Validation", False, "profession_label is empty")
+        
+        if not profession_icon:
+            return self.log_test("Full Progression Validation", False, "profession_icon is empty")
+        
+        if progression_niveau < 1:
+            return self.log_test("Full Progression Validation", False, f"progression_niveau should be >= 1, got {progression_niveau}")
+        
+        if not (0 <= progression_xp <= 100):
+            return self.log_test("Full Progression Validation", False, f"progression_xp should be 0-100, got {progression_xp}")
+        
+        if not isinstance(next_objective, str):
+            return self.log_test("Full Progression Validation", False, f"next_objective should be string, got {type(next_objective)}")
+        
+        if tier_max < 1:
+            return self.log_test("Full Progression Validation", False, f"tier_max should be >= 1, got {tier_max}")
+        
+        return self.log_test("Phase2 Full Progression Endpoint", True, f"All fields valid: niveau={progression_niveau}, xp={progression_xp}, tier_max={tier_max}")
+
     def run_all_tests(self):
         """Run all backend tests"""
         print("🚀 Starting Wellness App Backend Tests")
