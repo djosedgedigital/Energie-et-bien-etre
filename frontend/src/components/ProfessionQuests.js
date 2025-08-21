@@ -10,6 +10,7 @@ const API = `${BACKEND_URL}/api`;
 
 const ProfessionQuests = ({ userId, professionSlug }) => {
   const [quests, setQuests] = useState([]);
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [completing, setCompleting] = useState({});
 
