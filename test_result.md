@@ -123,8 +123,8 @@
         agent: "testing"
         comment: "All profession endpoints returned 200 with expected structures."
   - task: "Admin CRUD endpoints for professions"
-    implemented: false
-    working: false
+    implemented: true
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
@@ -136,6 +136,9 @@
       - working: false
         agent: "testing"
         comment: "❌ ADMIN PROFESSION CRUD ENDPOINTS STILL NOT IMPLEMENTED: Re-tested with correct admin header X-Admin-Email: contact@discipline90.com. ADMIN_EMAILS is now properly configured in backend/.env with contact@discipline90.com,support@discipline90.com. Admin guard function is_admin() exists and working, but all admin profession endpoints still return 404 Not Found: GET/POST/PUT/DELETE /api/admin/professions. The authentication framework is ready but the actual admin routes need to be implemented."
+      - working: true
+        agent: "testing"
+        comment: "✅ ADMIN PROFESSION CRUD ENDPOINTS WORKING PERFECTLY: Fixed routing issue by moving admin endpoints before app.include_router() call. All endpoints now working correctly: 1) GET /api/admin/professions returns 403 without header, 200 with admin header X-Admin-Email: contact@discipline90.com (returns array of 15 professions). 2) POST /api/admin/professions returns 403 without header, 200 with header (creates profession successfully). 3) PUT /api/admin/professions/{slug} returns 403 without header, 200 with header (updates profession successfully). 4) DELETE /api/admin/professions/{slug} returns 403 without header, 200 with header (deletes profession successfully). All CRUD operations tested and working with proper authentication."
   - task: "Admin CRUD endpoints for quests"
     implemented: false
     working: false
