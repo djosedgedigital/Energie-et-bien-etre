@@ -1090,6 +1090,125 @@ async def complete_quest(user_id: str, quest_id: str):
     
     return {"message": "Quest completed!", "points_earned": points}
 
+@api_router.post("/quests/{quest_id}/complete")
+async def complete_quest_new_format(quest_id: str, request: QuestCompleteRequest):
+    """Mark quest as completed - Phase 2 format"""
+    user_id = request.user_id
+    
+    # Check if this is a profession quest (starts with prof_)
+    if quest_id.startswith("prof_"):
+        # Look for profession quest in user_profession_quests
+        user_quest = await db.user_profession_quests.find_one({
+            "user_id": user_id, 
+            "quest_id": quest_id,
+            "status": {"$ne": "done"}
+        })
+        
+        if not user_quest:
+            # Check if already completed
+            completed_quest = await db.user_profession_quests.find_one({
+                "user_id": user_id, 
+                "quest_id": quest_id,
+                "status": "done"
+            })
+            if completed_quest:
+                # Already completed - return 0 XP
+                user_prog = await profession_service.get_user_progression(user_id)
+                current_xp = int(min(100, user_prog.get("xp_total", 0) % 100)) if user_prog else 0
+                return {
+                    "awarded_xp": 0,
+                    "new_progression_xp": current_xp,
+                    "level_up": False
+                }
+            else:
+                raise HTTPException(status_code=404, detail="Profession quest not found or not assigned to user")
+        
+        # Mark as completed
+        await db.user_profession_quests.update_one(
+            {"_id": user_quest["_id"]},
+            {
+                "$set": {
+                    "status": "done",
+                    "completed_at": datetime.now(timezone.utc)
+                }
+            }
+        )
+        
+        # Award XP to user progression
+        points = user_quest.get("points_reward", 10)
+        
+        # Update user progression
+        user_prog = await profession_service.get_user_progression(user_id)
+        if user_prog:
+            old_xp = user_prog.get("xp_total", 0)
+            old_level = user_prog.get("niveau_actuel", 1)
+            new_xp = old_xp + points
+            new_level = min(5, (new_xp // 100) + 1)  # Level up every 100 XP, max level 5
+            level_up = new_level > old_level
+            
+            await db.user_progressions.update_one(
+                {"user_id": user_id},
+                {
+                    "$set": {
+                        "xp_total": new_xp,
+                        "niveau_actuel": new_level
+                    }
+                }
+            )
+            
+            return {
+                "awarded_xp": points,
+                "new_progression_xp": int(new_xp % 100),
+                "level_up": level_up
+            }
+        else:
+            raise HTTPException(status_code=404, detail="User progression not found")
+    
+    else:
+        # Regular quest - use existing logic
+        quest = await db.quests.find_one({"id": quest_id})
+        if not quest:
+            raise HTTPException(status_code=404, detail="Quest not found")
+        
+        # Check if already completed today
+        today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        existing_completion = await db.user_quests.find_one({
+            "user_id": user_id,
+            "quest_id": quest_id,
+            "status": "done",
+            "completed_at": {"$gte": today}
+        })
+        
+        if existing_completion:
+            # Already completed today
+            return {
+                "awarded_xp": 0,
+                "new_progression_xp": 0,
+                "level_up": False
+            }
+        
+        # Update user quest status
+        await db.user_quests.update_one(
+            {"user_id": user_id, "quest_id": quest_id, "status": {"$ne": "done"}},
+            {
+                "$set": {
+                    "status": "done",
+                    "completed_at": datetime.now(timezone.utc)
+                }
+            },
+            upsert=True
+        )
+        
+        # Award points
+        points = quest.get("points_reward", 0)
+        await award_points_and_check_badges(user_id, points)
+        
+        return {
+            "awarded_xp": points,
+            "new_progression_xp": 0,  # Regular quests don't affect profession progression
+            "level_up": False
+        }
+
 # Quotes endpoint
 @api_router.get("/quotes/random")
 async def get_random_quote():
