@@ -89,7 +89,7 @@ const Admin = () => {
   const deleteQuest = async (id, title) => {
     if (!window.confirm(`Supprimer la quête « ${title} » ?`)) return;
     try {
-      await axios.delete(`${API}/admin/quests/${id}`, { headers });
+      await client.delete(`/quests/${id}`);
       await loadAll();
     } catch (e) {
       alert("Erreur suppression quête");
