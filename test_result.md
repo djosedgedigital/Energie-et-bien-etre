@@ -128,11 +128,14 @@
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "testing"
         comment: "❌ ADMIN PROFESSION CRUD ENDPOINTS NOT IMPLEMENTED: All admin profession endpoints return 404 Not Found. Required endpoints missing: 1) GET /api/admin/professions (should return 200 array with admin header, 403 without), 2) POST /api/admin/professions (create profession), 3) PUT /api/admin/professions/{slug} (update profession), 4) DELETE /api/admin/professions/{slug} (delete profession). Admin guard function is_admin() exists but no admin routes implemented. ADMIN_EMAILS environment variable not configured in backend/.env."
+      - working: false
+        agent: "testing"
+        comment: "❌ ADMIN PROFESSION CRUD ENDPOINTS STILL NOT IMPLEMENTED: Re-tested with correct admin header X-Admin-Email: contact@discipline90.com. ADMIN_EMAILS is now properly configured in backend/.env with contact@discipline90.com,support@discipline90.com. Admin guard function is_admin() exists and working, but all admin profession endpoints still return 404 Not Found: GET/POST/PUT/DELETE /api/admin/professions. The authentication framework is ready but the actual admin routes need to be implemented."
   - task: "Admin CRUD endpoints for quests"
     implemented: false
     working: false
