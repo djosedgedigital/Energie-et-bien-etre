@@ -43,8 +43,7 @@ const Admin = () => {
 
   useEffect(() => {
     loadAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adminEmail]);
+  }, [adminEmail, headers]);
 
   const handleProfSubmit = async (e) => {
     e.preventDefault();
