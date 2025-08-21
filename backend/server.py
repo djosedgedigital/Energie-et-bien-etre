@@ -1492,6 +1492,43 @@ async def user_me():
         logger.error(f"/user/me error: {str(e)}")
         raise HTTPException(status_code=500, detail="Error retrieving user")
 
+
+@api_router.post("/user/_demo/switch-profession/{slug}")
+async def user_demo_switch_profession(slug: str):
+    demo_mode = os.environ.get("DEMO_MODE", "false").lower() == "true"
+    if not demo_mode:
+        raise HTTPException(status_code=403, detail="Demo mode required")
+    demo_user_id = os.environ.get("DEMO_USER_ID", "demo-user")
+    demo_email = os.environ.get("DEMO_USER_EMAIL", "demo@discipline90.com")
+
+    # ensure user exists
+    user = await db.users.find_one({"id": demo_user_id})
+    if not user:
+        # create minimal user
+        prof = await profession_service.get_profession_by_slug(slug) or {"label": slug, "icon": "⚕️"}
+        user = {
+            "id": demo_user_id,
+            "email": demo_email,
+            "profession_slug": slug,
+            "profession_label": prof.get("label"),
+            "profession_icon": prof.get("icon"),
+            "created_at": datetime.now(timezone.utc)
+        }
+        await db.users.insert_one(user)
+        await profession_service.init_user_progression(demo_user_id, slug)
+    else:
+        # update profession fields
+        prof = await profession_service.get_profession_by_slug(slug) or {"label": slug, "icon": "⚕️"}
+        await db.users.update_one({"id": demo_user_id}, {"$set": {
+            "profession_slug": slug,
+            "profession_label": prof.get("label"),
+            "profession_icon": prof.get("icon")
+        }})
+
+    # assign quests idempotently
+    await assign_profession_quests(slug, demo_user_id, idempotent=True)
+    return {"ok": True, "slug": slug}
+
 # ------------- ADMIN CRUD (simple) -------------
 @api_router.get("/admin/professions")
 async def admin_list_professions(request: Request):
