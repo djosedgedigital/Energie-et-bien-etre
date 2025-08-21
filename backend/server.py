@@ -1424,19 +1424,6 @@ async def get_user_profession_quests(user_id: str):
         logger.error(f"Error getting profession quests: {str(e)}")
         raise HTTPException(status_code=500, detail="Error retrieving profession quests")
 
-# Include router
-app.include_router(api_router)
-
-# Landing page endpoint
-@app.get("/", response_class=HTMLResponse)
-async def landing_page():
-    """Serve the landing page"""
-    return """
-    <!DOCTYPE html>
-    <html lang="fr">
-    <head>
-        <meta charset="UTF-8">
-
 # ------------- ADMIN CRUD (simple) -------------
 @api_router.get("/admin/professions")
 async def admin_list_professions(request: Request):
@@ -1547,6 +1534,18 @@ async def admin_set_user_profession(user_id: str, slug: str, request: Request):
     await assign_profession_quests(slug, user_id, idempotent=True)
     return {"status": "ok"}
 
+# Include router
+app.include_router(api_router)
+
+# Landing page endpoint
+@app.get("/", response_class=HTMLResponse)
+async def landing_page():
+    """Serve the landing page"""
+    return """
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+        <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Énergie & Bien-être pour soignants™</title>
         <script src="https://cdn.tailwindcss.com"></script>
