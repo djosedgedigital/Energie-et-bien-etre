@@ -220,6 +220,17 @@
       - working: true
         agent: "testing"
         comment: "✅ PHASE 2 FULL PROGRESSION ENDPOINT WORKING PERFECTLY: 1) GET /api/professions/infirmier/progression/full?user_id={user_id} returns complete progression data. 2) Response includes all required fields: profession_label='Infirmier·ère', profession_icon='🩺', progression_niveau=1, progression_xp=0, next_objective='≥7h sur 5 nuits', tier_max=5. 3) All field types and value ranges validated correctly. 4) Endpoint provides comprehensive progression information for UI display including next objective text and maximum tier information."
+  - task: "Demo mode user endpoint /api/user/me"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ DEMO MODE USER ENDPOINT WORKING PERFECTLY: 1) GET /api/user/me returns 200 with all required fields: id, email, profession_slug, profession_label, profession_icon, progression_niveau, progression_xp. 2) Creates demo user demo@discipline90.com with profession infirmier on first call as expected. 3) Idempotent behavior confirmed - second call returns same user data consistently. 4) Quest assignment attempted without errors (idempotent). 5) DEMO_MODE environment variable properly configured and working. 6) All response field types and values validated correctly. Demo mode functionality fully operational for dashboard user loading."
 
 ## frontend:
   - task: "Dashboard: display Profession Progression card using new endpoint"
