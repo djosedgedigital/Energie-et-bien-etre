@@ -384,6 +384,13 @@ class WellnessAppTester:
         self.test_get_user_by_email()
         self.test_get_user_by_id()
         
+        # Professions system tests (NEW - HIGH PRIORITY)
+        print("\n🩺 Professions System Tests:")
+        self.test_professions_list()
+        self.test_profession_progression_without_user()
+        self.test_create_demo_user_and_progression()
+        self.test_profession_quests()
+        
         # Core functionality tests
         print("\n🎯 Core Functionality Tests:")
         self.test_dashboard_data()
