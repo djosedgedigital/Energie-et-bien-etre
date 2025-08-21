@@ -161,6 +161,7 @@ class BrevoEmailService:
         self.api_key = brevo_api_key
         self.base_url = "https://api.brevo.com/v3"
         self.default_sender = {"name": "Énergie & Bien-être", "email": email_from}
+        self.reply_to = email_reply_to
     
     def _get_headers(self):
         return {
@@ -169,7 +170,7 @@ class BrevoEmailService:
             "content-type": "application/json"
         }
     
-    async def send_email(self, to_email: str, subject: str, html_content: str = None, template_params: Dict = None):
+    async def send_email(self, to_email: str, subject: str, html_content: str = None, template_id: int = None, template_params: Dict = None):
         if not self.api_key:
             logger.warning("Brevo API key not configured, skipping email")
             return True
@@ -179,10 +180,15 @@ class BrevoEmailService:
         payload = {
             "sender": self.default_sender,
             "to": [{"email": to_email}],
-            "subject": subject
+            "subject": subject,
+            "replyTo": {"email": self.reply_to}
         }
         
-        if html_content:
+        if template_id:
+            payload["templateId"] = template_id
+            if template_params:
+                payload["params"] = template_params
+        elif html_content:
             payload["htmlContent"] = html_content
         
         try:
@@ -196,6 +202,62 @@ class BrevoEmailService:
         except Exception as e:
             logger.error(f"Error sending email to {to_email}: {str(e)}")
             return False
+    
+    async def send_welcome_email(self, user_email: str, user_name: str):
+        """Send welcome email after payment confirmation"""
+        if template_welcome_id:
+            return await self.send_email(
+                to_email=user_email,
+                subject="Bienvenue dans Énergie & Bien-être !",
+                template_id=int(template_welcome_id),
+                template_params={
+                    "user_name": user_name or "Soignant",
+                    "dashboard_url": f"{app_base_url}/app/dashboard",
+                    "app_name": app_name
+                }
+            )
+        else:
+            html_content = f"""
+            <div style="max-width: 600px; margin: 0 auto; font-family: 'Inter', sans-serif; color: #24313A;">
+                <div style="background: linear-gradient(135deg, #0E3A53 0%, #3FB28C 100%); padding: 40px 20px; text-align: center; border-radius: 12px 12px 0 0;">
+                    <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 600;">Bienvenue dans {app_name}</h1>
+                </div>
+                
+                <div style="background: white; padding: 40px 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                    <h2 style="color: #0E3A53; margin-bottom: 20px;">Félicitations {user_name or 'Soignant'} !</h2>
+                    
+                    <p style="color: #64748B; line-height: 1.6; margin-bottom: 25px;">
+                        Votre paiement a été confirmé avec succès. Vous avez maintenant accès à toutes les fonctionnalités d'Énergie & Bien-être pour soignants™.
+                    </p>
+                    
+                    <div style="background: #f8fafc; padding: 25px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #3FB28C;">
+                        <h3 style="color: #0E3A53; margin: 0 0 15px 0; font-size: 18px;">🎯 Prochaines étapes :</h3>
+                        <ul style="color: #64748B; margin: 0; padding-left: 20px;">
+                            <li>Définissez vos objectifs personnalisés</li>
+                            <li>Découvrez votre première quête quotidienne</li>
+                            <li>Commencez à tracker vos habitudes bien-être</li>
+                        </ul>
+                    </div>
+                    
+                    <div style="text-align: center; margin: 35px 0;">
+                        <a href="{app_base_url}/app/dashboard" style="background: #3FB28C; color: white; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block; transition: all 0.2s;">
+                            🚀 Accéder au tableau de bord
+                        </a>
+                    </div>
+                    
+                    <p style="color: #64748B; line-height: 1.6; font-size: 14px; margin-top: 30px;">
+                        Prenez soin de vous,<br>
+                        <strong style="color: #0E3A53;">L'équipe Discipline 90™</strong>
+                    </p>
+                </div>
+            </div>
+            """
+            
+            return await self.send_email(
+                to_email=user_email,
+                subject="Bienvenue dans Énergie & Bien-être !",
+                html_content=html_content
+            )
 
 email_service = BrevoEmailService()
 
