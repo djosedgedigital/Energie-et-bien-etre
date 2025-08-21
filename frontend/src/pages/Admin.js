@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import { adminClient } from "../api/adminClient";
+import { adminClient } from "../api/adminClient.ts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Input } from "../components/ui/input";
