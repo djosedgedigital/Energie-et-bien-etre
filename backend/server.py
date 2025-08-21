@@ -40,6 +40,9 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
+# Initialize services
+profession_service = ProfessionService(db)
+
 # Initialize Stripe
 stripe_api_key = os.environ.get('STRIPE_SECRET_KEY')  # Updated to use STRIPE_SECRET_KEY instead of STRIPE_API_KEY
 stripe_public_key = os.environ.get('STRIPE_PUBLIC_KEY')
