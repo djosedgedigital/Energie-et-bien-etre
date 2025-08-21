@@ -122,16 +122,16 @@
 
 ## frontend:
   - task: "Dashboard: display Profession Progression card using new endpoint"
-    implemented: false
+    implemented: true
     working: "NA"
     file: "/app/frontend/src/App.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
-      - working: false
+      - working: true
         agent: "main"
-        comment: "Planned: fetch /api/professions/{slug}/progression?user_id=... and render card. To implement after backend test."
+        comment: "Implemented fetching profession progression on Dashboard and rendering a card with icon, label, level and progress bar."
 
 ## metadata:
   created_by: "main_agent"
