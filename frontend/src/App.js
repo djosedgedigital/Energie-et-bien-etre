@@ -423,6 +423,18 @@ const Dashboard = () => {
         // Get dashboard data
         const dashResponse = await axios.get(`${API}/dashboard/${userData.id}`);
         setDashboardData(dashResponse.data);
+
+        // Fetch profession progression card data (Phase 1)
+        if (userData.profession_slug) {
+          try {
+            const progRes = await axios.get(`${API}/professions/${userData.profession_slug}/progression`, {
+              params: { user_id: userData.id }
+            });
+            setProfessionProgress(progRes.data);
+          } catch (e) {
+            console.warn('Profession progression not available:', e);
+          }
+        }
         
       } catch (error) {
         console.error('Error loading dashboard:', error);
