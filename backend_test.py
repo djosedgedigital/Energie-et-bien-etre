@@ -955,6 +955,68 @@ class WellnessAppTester:
                 else:
                     self.log_test("Admin Delete Quest Response", True, "Quest deleted successfully")
 
+    def test_admin_quest_preference(self):
+        """Test that GET /api/professions/infirmier/quests prefers admin-defined quests"""
+        print("\n🎯 Testing Admin Quest Preference:")
+        
+        admin_headers = {
+            'Content-Type': 'application/json',
+            'X-Admin-Email': 'contact@discipline90.com'
+        }
+        
+        # First, get the current quests (should be seed data)
+        success, initial_response = self.run_test(
+            "Get Initial Profession Quests",
+            "GET",
+            "professions/infirmier/quests",
+            200
+        )
+        
+        initial_count = len(initial_response) if success and isinstance(initial_response, list) else 0
+        print(f"   Initial quest count: {initial_count}")
+        
+        # Create an admin-defined quest for infirmier profession
+        admin_quest = {
+            "profession_slug": "infirmier",
+            "title": "Admin Defined Quest",
+            "description": "This quest was created by admin and should be preferred",
+            "level": 1,
+            "xp_reward": 15,
+            "is_enabled": True,
+            "order_index": 1
+        }
+        
+        success, create_response = self.run_test(
+            "Create Admin Quest for Preference Test",
+            "POST",
+            "admin/quests",
+            200,
+            data=admin_quest,
+            headers=admin_headers
+        )
+        
+        if not success:
+            return self.log_test("Admin Quest Preference Test", False, "Failed to create admin quest")
+        
+        # Now get the profession quests again - should prefer admin-defined ones
+        success, final_response = self.run_test(
+            "Get Profession Quests After Admin Creation",
+            "GET",
+            "professions/infirmier/quests",
+            200
+        )
+        
+        if success and isinstance(final_response, list):
+            # Check if we now have admin-defined quests
+            has_admin_quest = any(quest.get('title') == 'Admin Defined Quest' for quest in final_response)
+            
+            if has_admin_quest:
+                return self.log_test("Admin Quest Preference", True, f"Admin-defined quest found in response with {len(final_response)} total quests")
+            else:
+                return self.log_test("Admin Quest Preference", False, f"Admin-defined quest not found in response. Got {len(final_response)} quests")
+        else:
+            return self.log_test("Admin Quest Preference", False, "Failed to get profession quests after admin creation")
+
     def test_admin_utility_endpoints(self):
         """Test Admin utility endpoints"""
         print("\n🛠️ Testing Admin Utility Endpoints:")
