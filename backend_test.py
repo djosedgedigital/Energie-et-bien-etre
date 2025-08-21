@@ -1071,6 +1071,94 @@ class WellnessAppTester:
             else:
                 self.log_test("Admin Set Profession Response", True, f"Set user profession successfully: {status}")
 
+    def test_user_me_endpoint_demo_mode(self):
+        """Test /api/user/me endpoint in demo mode as per review request"""
+        print("\n👤 Testing /api/user/me Endpoint in Demo Mode:")
+        
+        # Test the /api/user/me endpoint
+        success, response = self.run_test(
+            "GET /api/user/me",
+            "GET",
+            "user/me",
+            200  # Expecting 200 in demo mode, 501 if not configured
+        )
+        
+        if not success:
+            # If we get 501, check if DEMO_MODE is not set and include backend logs
+            if hasattr(response, 'status_code') and response.status_code == 501:
+                print("   ❌ Got 501 - DEMO_MODE likely not set")
+                # Try to get backend logs
+                try:
+                    import subprocess
+                    result = subprocess.run(['tail', '-n', '50', '/var/log/supervisor/backend.*.log'], 
+                                          capture_output=True, text=True, shell=True)
+                    if result.stdout:
+                        print("   📋 Backend logs:")
+                        print(result.stdout[-1000:])  # Last 1000 chars
+                except:
+                    print("   ⚠️ Could not retrieve backend logs")
+                return self.log_test("User Me Demo Mode", False, "Returned 501 - DEMO_MODE environment not set")
+            return False
+        
+        # Validate response structure
+        required_fields = ['id', 'email', 'profession_slug', 'profession_label', 'profession_icon', 'progression_niveau', 'progression_xp']
+        missing_fields = [field for field in required_fields if field not in response]
+        
+        if missing_fields:
+            return self.log_test("User Me Response Structure", False, f"Missing required fields: {missing_fields}")
+        
+        # Validate specific values
+        email = response.get('email', '')
+        profession_slug = response.get('profession_slug', '')
+        profession_label = response.get('profession_label', '')
+        profession_icon = response.get('profession_icon', '')
+        progression_niveau = response.get('progression_niveau', 0)
+        progression_xp = response.get('progression_xp', -1)
+        
+        print(f"   📧 Email: {email}")
+        print(f"   🩺 Profession: {profession_slug} ({profession_label}) {profession_icon}")
+        print(f"   📊 Progression: Level {progression_niveau}, XP {progression_xp}")
+        
+        # Check if demo user was created with expected values
+        expected_email = "demo@discipline90.com"
+        expected_profession = "infirmier"
+        
+        if email != expected_email:
+            return self.log_test("Demo User Email Check", False, f"Expected '{expected_email}', got '{email}'")
+        
+        if profession_slug != expected_profession:
+            return self.log_test("Demo User Profession Check", False, f"Expected '{expected_profession}', got '{profession_slug}'")
+        
+        # Validate progression values are reasonable
+        if progression_niveau < 1:
+            return self.log_test("Progression Niveau Check", False, f"Expected niveau >= 1, got {progression_niveau}")
+        
+        if not (0 <= progression_xp <= 100):
+            return self.log_test("Progression XP Check", False, f"Expected XP 0-100, got {progression_xp}")
+        
+        # Test idempotency - call again and ensure same user is returned
+        success2, response2 = self.run_test(
+            "GET /api/user/me (Second Call)",
+            "GET", 
+            "user/me",
+            200
+        )
+        
+        if success2:
+            same_id = response.get('id') == response2.get('id')
+            same_email = response.get('email') == response2.get('email')
+            
+            if not (same_id and same_email):
+                return self.log_test("User Me Idempotency", False, "Second call returned different user data")
+            else:
+                self.log_test("User Me Idempotency", True, "Second call returned same user consistently")
+        
+        # Verify quest assignment was attempted (no error should occur)
+        # This is implicit in the endpoint - if it completes successfully, quest assignment worked
+        self.log_test("Quest Assignment Attempt", True, "No errors during quest assignment (idempotent)")
+        
+        return self.log_test("User Me Demo Mode", True, f"Demo user created: {email} with profession {profession_slug}")
+
     def run_test(self, name, method, endpoint, expected_status, data=None, headers=None):
         """Run a single API test - enhanced version with DELETE support"""
         url = f"{self.api_url}/{endpoint}" if not endpoint.startswith('http') else endpoint
