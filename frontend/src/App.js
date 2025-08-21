@@ -621,33 +621,48 @@ const Dashboard = () => {
               </Card>
             )}
 
-            {/* Progression Métier */}
-            {dashboardData.user_progression && (
+            {/* Progression Métier (Phase 1) */}
+            {(professionProgress || dashboardData.user_progression) && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <Trophy className="h-5 w-5 text-yellow-500 mr-2" />
-                    Progression {user?.profession_label}
+                    Progression métier
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center mb-4">
-                    <p className="text-sm text-slate-600 mb-2">
-                      Niveau {dashboardData.user_progression.niveau_actuel || 1} / 5
-                    </p>
-                    <Progress 
-                      value={(dashboardData.user_progression.niveau_actuel || 1) * 20} 
-                      className="w-full h-2" 
-                    />
-                    <p className="text-xs text-slate-500 mt-1">
-                      {dashboardData.user_progression.xp_total || 0} XP métier
-                    </p>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">
+                        {professionProgress?.profession_icon || user?.profession_icon || '🎯'}
+                      </span>
+                      <div>
+                        <div className="text-slate-800 font-semibold">
+                          {professionProgress?.profession_label || user?.profession_label || 'Métier non défini'}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          Niveau {professionProgress?.progression_niveau || dashboardData.user_progression?.niveau_actuel || 1} / 5
+                        </div>
+                      </div>
+                    </div>
+                    <Badge variant="secondary" className="text-[11px]">
+                      {professionProgress?.progression_xp ?? (dashboardData.user_progression?.xp_total % 100) ?? 0}%
+                    </Badge>
                   </div>
-                  <div className="text-center">
-                    <Button variant="outline" size="sm" className="text-xs">
-                      Voir progression complète
-                    </Button>
-                  </div>
+
+                  <Progress
+                    value={
+                      typeof (professionProgress?.progression_xp) === 'number'
+                        ? professionProgress.progression_xp
+                        : Math.min(100, (dashboardData.user_progression?.niveau_actuel || 1) * 20)
+                    }
+                    className="w-full h-2"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    {typeof (professionProgress?.progression_xp) === 'number'
+                      ? `${professionProgress.progression_xp}% atteint`
+                      : `${dashboardData.user_progression?.xp_total || 0} XP métier`}
+                  </p>
                 </CardContent>
               </Card>
             )}
