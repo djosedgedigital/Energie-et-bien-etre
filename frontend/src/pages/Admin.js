@@ -55,7 +55,7 @@ const Admin = () => {
       const { sanitizeSlug } = await import("../helpers/slug");
       const payload = { ...profForm };
       payload.slug = sanitizeSlug(payload.slug || payload.label);
-      await axios.post(`${API}/admin/professions`, payload, { headers });
+      await client.post(`/professions`, payload);
       setProfForm({ label: "", slug: "", icon: "", order_index: 1, active: true });
       await loadAll();
     } catch (e) {
