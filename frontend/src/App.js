@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
@@ -46,7 +47,7 @@ function getUrlParameter(name) {
   return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
 }
 
-// Landing Component (truncated for brevity)
+// Landing Component
 const LandingPage = () => {
   const [isLoading, setIsLoading] = useState(false);
 
@@ -72,7 +73,7 @@ const LandingPage = () => {
           <div className="flex items-center gap-3">
             <img
               alt="Énergie & Bien-être"
-              src="https://onedrive.live.com/download?cid=C497D58E20822AA9&resid=C497D58E20822AA9!s4cdf20f1ab6c49349487f35eddafacc2"
+              src="/assets/logo-full.png"
               className="h-12 w-auto rounded-md shadow-sm border border-slate-200 bg-white object-contain"
             />
             <div>
@@ -86,7 +87,6 @@ const LandingPage = () => {
         </div>
       </header>
 
-      {/* Rest of landing content unchanged for brevity */}
       <main className="container mx-auto px-4 py-12">
         <p className="text-slate-600">Bienvenue dans Énergie & Bien-être™. Faites défiler pour découvrir les fonctionnalités.</p>
       </main>
@@ -132,6 +132,13 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <header className="bg-white border-b">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img alt="Énergie & Bien-être" src="/assets/logo-full.png" className="h-10 w-auto" />
+          </div>
+        </div>
+      </header>
       <div className="container mx-auto px-4 py-8 space-y-6">
         <h1 className="text-2xl font-bold">Dashboard</h1>
 
@@ -176,18 +183,6 @@ const Dashboard = () => {
   );
 };
 
-// PaymentSuccess Component (simplified for admin testing)
-const PaymentSuccess = () => {
-  return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-4">Payment Success</h1>
-        <p>Payment was successful!</p>
-      </div>
-    </div>
-  );
-};
-
 // Main App Component
 function App() {
   return (
@@ -201,6 +196,34 @@ function App() {
         </Routes>
       </BrowserRouter>
       <Toaster />
+    </div>
+  );
+}
+
+function PaymentSuccess() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const sessionId = getUrlParameter("session_id");
+    if (sessionId) {
+      (async () => {
+        try {
+          const res = await axios.get(`${API}/checkout/status/${sessionId}`);
+          if (res.data?.payment_status === "paid") {
+            setTimeout(() => navigate("/app/dashboard"), 1200);
+          }
+        } catch (e) {}
+      })();
+    }
+  }, [navigate]);
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <Card className="max-w-md w-full">
+        <CardHeader>
+          <CardTitle>Paiement confirmé</CardTitle>
+          <CardDescription>Redirection vers le tableau de bord…</CardDescription>
+        </CardHeader>
+      </Card>
     </div>
   );
 }

@@ -17,24 +17,19 @@ const Admin = () => {
   const [professions, setProfessions] = useState([]);
   const [quests, setQuests] = useState([]);
   const [selectedProfession, setSelectedProfession] = useState("");
-  const client = useMemo(() => adminClient(adminEmail), [adminEmail]);
   const [loading, setLoading] = useState(false);
-  const headers = useMemo(() => ({ "X-Admin-Email": adminEmail }), [adminEmail]);
+  const client = useMemo(() => adminClient(adminEmail), [adminEmail]);
 
   const [profForm, setProfForm] = useState({ label: "", slug: "", icon: "", order_index: 1, active: true });
   const [questForm, setQuestForm] = useState({ profession_slug: "", title: "", description: "", level: 1, xp_reward: 10, order_index: 1, is_enabled: true });
 
-  useEffect(() => {
-    localStorage.setItem("adminEmail", adminEmail);
-  }, [adminEmail]);
-
   const loadAll = async () => {
     setLoading(true);
-    const questUrl = selectedProfession ? `${API}/admin/quests?profession_slug=${encodeURIComponent(selectedProfession)}` : `${API}/admin/quests`;
     try {
+      const questUrl = selectedProfession ? `/quests?profession_slug=${encodeURIComponent(selectedProfession)}` : `/quests`;
       const [p, q] = await Promise.all([
         client.get(`/professions`),
-        client.get(questUrl.replace(`${API}/admin`, "")),
+        client.get(questUrl),
       ]);
       setProfessions(p.data || []);
       setQuests(q.data || []);
@@ -47,7 +42,8 @@ const Admin = () => {
 
   useEffect(() => {
     loadAll();
-  }, [adminEmail, headers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminEmail, selectedProfession]);
 
   const handleProfSubmit = async (e) => {
     e.preventDefault();
@@ -112,8 +108,7 @@ const Admin = () => {
       <header className="bg-white border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img alt="Énergie & Bien-être" src="https://onedrive.live.com/download?cid=C497D58E20822AA9&resid=C497D58E20822AA9!s4cdf20f1ab6c49349487f35eddafacc2" className="h-10 w-auto" />
-            <h1 className="text-xl font-semibold text-slate-800">Back-office — Métiers & Quêtes</h1>
+            <img alt="Énergie & Bien-être" src="/assets/logo-full.png" className="h-10 w-auto" />
           </div>
           <div className="flex items-center gap-2">
             <Label htmlFor="adminEmail" className="text-xs text-slate-500">Email admin</Label>
@@ -178,6 +173,22 @@ const Admin = () => {
                 <CardTitle>Liste des métiers</CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="mb-3 flex items-center gap-3">
+                  <div>
+                    <Label>Filtrer par métier</Label>
+                    <select
+                      value={selectedProfession}
+                      onChange={(e) => setSelectedProfession(e.target.value)}
+                      className="border p-2 rounded min-w-[240px]"
+                    >
+                      <option value="">-- Tous les métiers --</option>
+                      {professions.map((p) => (
+                        <option key={p.slug} value={p.slug}>{p.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={loadAll} disabled={loading}>Rafraîchir</Button>
+                </div>
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm">
                     <thead>
@@ -256,23 +267,6 @@ const Admin = () => {
 
             <Card>
               <CardHeader>
-              <div className="mb-3 flex items-center gap-3">
-                <div>
-                  <Label>Filtrer par métier</Label>
-                  <select
-                    value={selectedProfession}
-                    onChange={(e) => setSelectedProfession(e.target.value)}
-                    className="border p-2 rounded min-w-[240px]"
-                  >
-                    <option value="">-- Tous les métiers --</option>
-                    {professions.map((p) => (
-                      <option key={p.slug} value={p.slug}>{p.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <Button variant="outline" size="sm" onClick={loadAll} disabled={loading}>Rafraîchir</Button>
-              </div>
-
                 <CardTitle>Quêtes par métier</CardTitle>
               </CardHeader>
               <CardContent>
