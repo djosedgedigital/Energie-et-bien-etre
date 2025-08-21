@@ -723,6 +723,12 @@ class WellnessAppTester:
         self.test_phase2_verify_profession_quests_still_works()
         self.test_phase2_user_creation_implicit_assignment()
         
+        # Phase 2 Review Request Tests (NEW ENDPOINTS/FLOWS)
+        print("\n🔍 Phase 2 Review Request Tests:")
+        self.test_phase2_idempotent_assignment_flow()
+        self.test_phase2_complete_profession_quest_flow()
+        self.test_phase2_full_progression_endpoint()
+        
         # Core functionality tests
         print("\n🎯 Core Functionality Tests:")
         self.test_dashboard_data()
