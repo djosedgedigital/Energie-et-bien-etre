@@ -67,7 +67,7 @@ const Admin = () => {
   const handleQuestSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API}/admin/quests`, questForm, { headers });
+      await client.post(`/quests`, questForm);
       setQuestForm({ profession_slug: "", title: "", description: "", level: 1, xp_reward: 10, order_index: 1, is_enabled: true });
       await loadAll();
     } catch (e) {
