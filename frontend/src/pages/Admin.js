@@ -32,7 +32,7 @@ const Admin = () => {
     try {
       const [p, q] = await Promise.all([
         axios.get(`${API}/admin/professions`, { headers }),
-        axios.get(`${API}/admin/quests`, { headers }),
+        axios.get(questUrl, { headers }),
       ]);
       setProfessions(p.data || []);
       setQuests(q.data || []);
