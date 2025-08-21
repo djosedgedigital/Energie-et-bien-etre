@@ -432,10 +432,10 @@ const Dashboard = () => {
         // Fetch profession progression card data (Phase 1)
         if (userData.profession_slug) {
           try {
-            const progRes = await axios.get(`${API}/professions/${userData.profession_slug}/progression`, {
+            const fullRes = await axios.get(`${API}/professions/${userData.profession_slug}/progression/full`, {
               params: { user_id: userData.id }
             });
-            setProfessionProgress(progRes.data);
+            setProfessionProgress(fullRes.data);
           } catch (e) {
             console.warn('Profession progression not available:', e);
           }
