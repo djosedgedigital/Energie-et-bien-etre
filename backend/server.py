@@ -657,40 +657,52 @@ async def stripe_webhook(request: Request):
 @api_router.post("/users", response_model=User)
 async def create_user(user_data: UserCreate):
     """Create new user"""
-    # Check if user exists
-    existing_user = await db.users.find_one({"email": user_data.email})
-    if existing_user:
-        return User(**existing_user)
-    
-    # Create new user with default settings
-    default_settings = {
-        "water_goal_ml": 2000,
-        "sleep_goal_h": 7.5,
-        "activity_goal_min": 30,
-        "serenity_goal_min": 10,
-        "notifications_daily": True,
-        "theme_pref": "forest"
-    }
-    
-    user = User(**user_data.dict(), settings=default_settings)
-    await db.users.insert_one(user.dict())
-    return user
+    try:
+        # Check if user exists
+        existing_user = await db.users.find_one({"email": user_data.email})
+        if existing_user:
+            return serialize_mongo_doc(existing_user)
+        
+        # Create new user with default settings
+        default_settings = {
+            "water_goal_ml": 2000,
+            "sleep_goal_h": 7.5,
+            "activity_goal_min": 30,
+            "serenity_goal_min": 10,
+            "notifications_daily": True,
+            "theme_pref": "forest"
+        }
+        
+        user = User(**user_data.dict(), settings=default_settings)
+        await db.users.insert_one(user.dict())
+        return serialize_mongo_doc(user.dict())
+    except Exception as e:
+        logger.error(f"Error creating user: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error creating user")
 
 @api_router.get("/users/{user_id}", response_model=User)
 async def get_user(user_id: str):
     """Get user by ID"""
-    user = await db.users.find_one({"id": user_id})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return User(**user)
+    try:
+        user = await db.users.find_one({"id": user_id})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return serialize_mongo_doc(user)
+    except Exception as e:
+        logger.error(f"Error getting user: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error retrieving user")
 
 @api_router.get("/users/email/{email}", response_model=User)
 async def get_user_by_email(email: str):
     """Get user by email"""
-    user = await db.users.find_one({"email": email})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return User(**user)
+    try:
+        user = await db.users.find_one({"email": email})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return serialize_mongo_doc(user)
+    except Exception as e:
+        logger.error(f"Error getting user by email: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error retrieving user")
 
 # Dashboard endpoints
 @api_router.get("/dashboard/{user_id}")
