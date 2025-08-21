@@ -683,6 +683,9 @@ const Dashboard = () => {
                       ? `${professionProgress.progression_xp}% atteint`
                       : `${dashboardData.user_progression?.xp_total || 0} XP métier`}
                   </p>
+                  {professionProgress?.next_objective && (
+                    <p className="text-xs text-slate-500 mt-1">Prochain objectif : {professionProgress.next_objective}</p>
+                  )}
                 </CardContent>
               </Card>
             )}
