@@ -8,7 +8,7 @@ import { CheckCircle, Play } from "lucide-react";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-const ProfessionQuests = ({ userId, professionSlug }) => {
+const ProfessionQuests = ({ userId, professionSlug, refreshProgression, user }) => {
   const [quests, setQuests] = useState([]);
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
