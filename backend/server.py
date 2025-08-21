@@ -758,6 +758,62 @@ async def get_user_by_email(email: str):
         logger.error(f"Error getting user by email: {str(e)}")
         raise HTTPException(status_code=500, detail="Error retrieving user")
 
+# Professions endpoints
+@api_router.get("/professions")
+async def list_professions():
+    """List all active professions for selection UIs"""
+    try:
+        professions = await profession_service.get_active_professions()
+        return professions
+    except Exception as e:
+        logger.error(f"Error listing professions: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error retrieving professions")
+
+@api_router.get("/professions/{slug}/progression")
+async def get_profession_progression(slug: str, user_id: Optional[str] = None):
+    """Return a compact progression status for a user and profession
+    Shape: { profession_label, profession_icon, progression_niveau, progression_xp }
+    """
+    try:
+        profession = await profession_service.get_profession_by_slug(slug)
+        if not profession:
+            raise HTTPException(status_code=404, detail="Profession not found")
+
+        progression_niveau = 1
+        progression_xp = 0
+        if user_id:
+            user_prog = await profession_service.get_user_progression(user_id)
+            if user_prog and user_prog.get("profession_slug") == slug:
+                progression_niveau = user_prog.get("niveau_actuel", 1)
+                # Expose XP as percentage to next tier if you later add thresholds; for now use min(100, xp_total % 100)
+                progression_xp = int(min(100, user_prog.get("xp_total", 0) % 100))
+
+        return {
+            "profession_label": profession.get("label"),
+            "profession_icon": profession.get("icon"),
+            "progression_niveau": progression_niveau,
+            "progression_xp": progression_xp
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting profession progression: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error retrieving progression")
+
+@api_router.get("/professions/{slug}/quests")
+async def get_profession_quests(slug: str):
+    """Return recommended quests for a profession (simple seed data for now)."""
+    try:
+        profession = await profession_service.get_profession_by_slug(slug)
+        if not profession:
+            raise HTTPException(status_code=404, detail="Profession not found")
+        return profession.get("recommended_quests", [])
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting profession quests: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error retrieving quests")
+
 # Dashboard endpoints
 @api_router.get("/dashboard/{user_id}")
 async def get_dashboard_data(user_id: str):
