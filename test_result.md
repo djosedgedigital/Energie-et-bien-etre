@@ -141,7 +141,7 @@
 
 ## test_plan:
   current_focus:
-    - "Create professions endpoints (list, progression, quests)"
+    - "Dashboard: display Profession Progression card using new endpoint"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
