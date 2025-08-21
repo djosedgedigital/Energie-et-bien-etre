@@ -15,6 +15,7 @@ const Admin = () => {
   const [adminEmail, setAdminEmail] = useState(() => localStorage.getItem("adminEmail") || "contact@discipline90.com");
   const [professions, setProfessions] = useState([]);
   const [quests, setQuests] = useState([]);
+  const [selectedProfession, setSelectedProfession] = useState("");
   const [loading, setLoading] = useState(false);
   const headers = useMemo(() => ({ "X-Admin-Email": adminEmail }), [adminEmail]);
 
