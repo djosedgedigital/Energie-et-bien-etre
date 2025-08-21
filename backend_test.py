@@ -189,6 +189,156 @@ class WellnessAppTester:
             return self.log_test("Quote Structure", has_text, f"Has text field: {has_text}")
         return success
 
+    def test_professions_list(self):
+        """Test GET /api/professions endpoint"""
+        success, response = self.run_test(
+            "List Professions",
+            "GET",
+            "professions",
+            200
+        )
+        
+        if success and response:
+            # Check if response is an array
+            is_array = isinstance(response, list)
+            if not is_array:
+                return self.log_test("Professions List Structure", False, "Response is not an array")
+            
+            # Check if we have at least 3 professions (as per seeding)
+            count_check = len(response) >= 3
+            if not count_check:
+                return self.log_test("Professions Count", False, f"Expected >= 3, got {len(response)}")
+            
+            # Check structure of first profession
+            if response:
+                first_prof = response[0]
+                required_fields = ['slug', 'label', 'icon', 'order_index', 'is_active']
+                missing_fields = [field for field in required_fields if field not in first_prof]
+                
+                if missing_fields:
+                    return self.log_test("Profession Structure", False, f"Missing fields: {missing_fields}")
+                else:
+                    self.log_test("Profession Structure", True, f"All required fields present")
+                    self.log_test("Professions Count", True, f"Found {len(response)} professions")
+        
+        return success
+
+    def test_profession_progression_without_user(self):
+        """Test GET /api/professions/infirmier/progression without user_id"""
+        success, response = self.run_test(
+            "Profession Progression (no user)",
+            "GET",
+            "professions/infirmier/progression",
+            200
+        )
+        
+        if success and response:
+            required_fields = ['profession_label', 'profession_icon', 'progression_niveau', 'progression_xp']
+            missing_fields = [field for field in required_fields if field not in response]
+            
+            if missing_fields:
+                return self.log_test("Progression Structure", False, f"Missing fields: {missing_fields}")
+            
+            # Check default values
+            niveau_check = response.get('progression_niveau') == 1
+            xp_check = 0 <= response.get('progression_xp', -1) <= 100
+            
+            if not niveau_check:
+                return self.log_test("Default Niveau", False, f"Expected 1, got {response.get('progression_niveau')}")
+            
+            if not xp_check:
+                return self.log_test("Default XP Range", False, f"Expected 0-100, got {response.get('progression_xp')}")
+            
+            self.log_test("Progression Structure", True, "All required fields present")
+            self.log_test("Default Values", True, f"Niveau: {response.get('progression_niveau')}, XP: {response.get('progression_xp')}")
+        
+        return success
+
+    def test_create_demo_user_and_progression(self):
+        """Test creating demo user and checking progression with user_id"""
+        # First create demo user
+        demo_email = "demo@example.com"
+        success, response = self.run_test(
+            "Create Demo User",
+            "POST",
+            "users",
+            200,
+            data={"email": demo_email, "name": "Utilisateur Demo", "profession_slug": "infirmier"}
+        )
+        
+        if not success or not response.get('id'):
+            return False
+        
+        demo_user_id = response['id']
+        
+        # Test progression with user_id
+        success, response = self.run_test(
+            "Profession Progression (with user)",
+            "GET",
+            f"professions/infirmier/progression?user_id={demo_user_id}",
+            200
+        )
+        
+        if success and response:
+            required_fields = ['profession_label', 'profession_icon', 'progression_niveau', 'progression_xp']
+            missing_fields = [field for field in required_fields if field not in response]
+            
+            if missing_fields:
+                return self.log_test("User Progression Structure", False, f"Missing fields: {missing_fields}")
+            
+            # Check values for user
+            niveau_check = response.get('progression_niveau', 0) >= 1
+            xp_check = 0 <= response.get('progression_xp', -1) <= 100
+            has_profession_info = response.get('profession_label') and response.get('profession_icon')
+            
+            if not niveau_check:
+                return self.log_test("User Niveau Check", False, f"Expected >= 1, got {response.get('progression_niveau')}")
+            
+            if not xp_check:
+                return self.log_test("User XP Range", False, f"Expected 0-100, got {response.get('progression_xp')}")
+            
+            if not has_profession_info:
+                return self.log_test("Profession Info", False, "Missing profession_label or profession_icon")
+            
+            self.log_test("User Progression Structure", True, "All required fields present")
+            self.log_test("User Progression Values", True, f"Niveau: {response.get('progression_niveau')}, XP: {response.get('progression_xp')}")
+        
+        return success
+
+    def test_profession_quests(self):
+        """Test GET /api/professions/infirmier/quests"""
+        success, response = self.run_test(
+            "Profession Quests",
+            "GET",
+            "professions/infirmier/quests",
+            200
+        )
+        
+        if success and response:
+            # Check if response is an array
+            is_array = isinstance(response, list)
+            if not is_array:
+                return self.log_test("Quests Structure", False, "Response is not an array")
+            
+            # Check if we have quests (should have recommended_quests from seed)
+            has_quests = len(response) > 0
+            if not has_quests:
+                return self.log_test("Quests Count", False, "No quests found")
+            
+            # Check structure of first quest
+            if response:
+                first_quest = response[0]
+                required_fields = ['title', 'description', 'points_reward', 'type']
+                missing_fields = [field for field in required_fields if field not in first_quest]
+                
+                if missing_fields:
+                    return self.log_test("Quest Structure", False, f"Missing fields: {missing_fields}")
+                else:
+                    self.log_test("Quest Structure", True, f"All required fields present")
+                    self.log_test("Quests Count", True, f"Found {len(response)} quests")
+        
+        return success
+
     def test_checkout_session_creation(self):
         """Test Stripe checkout session creation"""
         success, response = self.run_test(
