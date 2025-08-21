@@ -17,6 +17,7 @@ const Admin = () => {
   const [professions, setProfessions] = useState([]);
   const [quests, setQuests] = useState([]);
   const [selectedProfession, setSelectedProfession] = useState("");
+  const client = useMemo(() => adminClient(adminEmail), [adminEmail]);
   const [loading, setLoading] = useState(false);
   const headers = useMemo(() => ({ "X-Admin-Email": adminEmail }), [adminEmail]);
 
