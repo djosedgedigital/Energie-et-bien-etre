@@ -101,3 +101,48 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+## user_problem_statement: "Add Professions system and show Profession Progression on Dashboard; support admin CRUD; integrate logos; Stripe payment; Brevo emails. Phase 1 now: Dashboard Profession progression card using /api endpoints."
+
+## backend:
+  - task: "Create professions endpoints (list, progression, quests)"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Added @api_router GET /api/professions, /api/professions/{slug}/progression, /api/professions/{slug}/quests using ProfessionService. Seeding already in lifespan."
+
+## frontend:
+  - task: "Dashboard: display Profession Progression card using new endpoint"
+    implemented: false
+    working: "NA"
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "main"
+        comment: "Planned: fetch /api/professions/{slug}/progression?user_id=... and render card. To implement after backend test."
+
+## metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+## test_plan:
+  current_focus:
+    - "Create professions endpoints (list, progression, quests)"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+## agent_communication:
+  - agent: "main"
+    message: "Please test backend endpoints: GET /api/professions returns array with label, slug, icon; GET /api/professions/infirmier/progression (without user_id) returns structure with profession_label/icon and default progression_niveau/xp; and GET with ?user_id=<a seeded or created user> returns values (xp may be 0). Also test GET /api/professions/infirmier/quests returns recommended_quests from seed."
