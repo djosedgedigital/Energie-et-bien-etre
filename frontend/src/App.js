@@ -81,9 +81,11 @@ const LandingPage = () => {
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-3">
             <div className="relative">
-              <div className="w-12 h-12 bg-gradient-to-r from-slate-800 to-emerald-600 rounded-lg flex items-center justify-center border border-slate-200 shadow-sm">
-                <span className="text-white font-bold text-lg">E&B</span>
-              </div>
+              <img
+                alt="Énergie & Bien-être"
+                src="https://1drv.ms/i/c/c497d58e20822aa9/EfEg30xsqzRJlIfzXt2vrMIBwS4Mjt4y6Eh9N4yM7ueqUQ?e=AnhN6M"
+                className="h-12 w-auto rounded-md shadow-sm border border-slate-200 bg-white object-contain"
+              />
             </div>
             <div>
               <span className="text-xl font-bold text-slate-800">Énergie & Bien-être™</span>
