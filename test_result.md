@@ -122,6 +122,39 @@
       - working: true
         agent: "testing"
         comment: "All profession endpoints returned 200 with expected structures."
+  - task: "Admin CRUD endpoints for professions"
+    implemented: false
+    working: false
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "❌ ADMIN PROFESSION CRUD ENDPOINTS NOT IMPLEMENTED: All admin profession endpoints return 404 Not Found. Required endpoints missing: 1) GET /api/admin/professions (should return 200 array with admin header, 403 without), 2) POST /api/admin/professions (create profession), 3) PUT /api/admin/professions/{slug} (update profession), 4) DELETE /api/admin/professions/{slug} (delete profession). Admin guard function is_admin() exists but no admin routes implemented. ADMIN_EMAILS environment variable not configured in backend/.env."
+  - task: "Admin CRUD endpoints for quests"
+    implemented: false
+    working: false
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "❌ ADMIN QUEST CRUD ENDPOINTS NOT IMPLEMENTED: All admin quest endpoints return 404 Not Found. Required endpoints missing: 1) GET /api/admin/quests (should return 200 array with admin header, 403 without), 2) POST /api/admin/quests (create quest), 3) PUT /api/admin/quests/{id} (update quest), 4) DELETE /api/admin/quests/{id} (delete quest). Admin authentication system exists but admin routes not implemented."
+  - task: "Admin utility endpoint for user profession assignment"
+    implemented: false
+    working: false
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "❌ ADMIN UTILITY ENDPOINT NOT IMPLEMENTED: POST /api/admin/users/{user_id}/set-profession/{profession_slug} returns 404 Not Found. This endpoint should return 200 {status:'ok'} with admin header X-Admin-Email: toi@discipline90.com, and 403 without admin header. Admin authentication framework exists but utility endpoint missing."
   - task: "Assign profession quests to user at onboarding"
     implemented: true
     working: true
