@@ -247,7 +247,8 @@
   run_ui: true
 
 ## test_plan:
-  current_focus: []
+  current_focus:
+    - "Admin UI: /admin page loads, create/delete Profession, create/delete Quest, set profession utility calls with X-Admin-Email"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
