@@ -33,8 +33,8 @@ const Admin = () => {
     const questUrl = selectedProfession ? `${API}/admin/quests?profession_slug=${encodeURIComponent(selectedProfession)}` : `${API}/admin/quests`;
     try {
       const [p, q] = await Promise.all([
-        axios.get(`${API}/admin/professions`, { headers }),
-        axios.get(questUrl, { headers }),
+        client.get(`/professions`),
+        client.get(questUrl.replace(`${API}/admin`, "")),
       ]);
       setProfessions(p.data || []);
       setQuests(q.data || []);
