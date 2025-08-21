@@ -1215,6 +1215,10 @@ class WellnessAppTester:
         self.test_get_user_by_email()
         self.test_get_user_by_id()
         
+        # Demo mode user endpoint test (REVIEW REQUEST FOCUS)
+        print("\n🎯 Demo Mode User Endpoint Test:")
+        self.test_user_me_endpoint_demo_mode()
+        
         # Admin CRUD Tests (NEW - CURRENT FOCUS)
         print("\n🔐 Admin CRUD Tests:")
         self.test_admin_professions_crud()
