@@ -391,6 +391,9 @@ async def lifespan(app: FastAPI):
     # Seed initial data
     await seed_initial_data()
     
+    # Seed professions data
+    await profession_service.seed_professions()
+    
     yield
     
     # Shutdown
