@@ -1436,6 +1436,117 @@ async def landing_page():
     <html lang="fr">
     <head>
         <meta charset="UTF-8">
+
+# ------------- ADMIN CRUD (simple) -------------
+@api_router.get("/admin/professions")
+async def admin_list_professions(request: Request):
+    if not is_admin(request):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    items = await db.professions.find({}).sort("order_index", 1).to_list(200)
+    return serialize_mongo_doc(items)
+
+@api_router.post("/admin/professions")
+async def admin_create_profession(request: Request):
+    if not is_admin(request):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    data = await request.json()
+    # auto-slug if missing
+    if not data.get("slug") and data.get("label"):
+        data["slug"] = data["label"].lower().replace(" ", "_").replace("-", "_")
+    data.setdefault("order_index", 1)
+    data.setdefault("active", True)
+    # unique slug
+    existing = await db.professions.find_one({"slug": data["slug"]})
+    if existing:
+        raise HTTPException(status_code=409, detail="Slug already exists")
+    data["id"] = str(uuid.uuid4())
+    await db.professions.insert_one(data)
+    return serialize_mongo_doc(data)
+
+@api_router.put("/admin/professions/{slug}")
+async def admin_update_profession(slug: str, request: Request):
+    if not is_admin(request):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    data = await request.json()
+    await db.professions.update_one({"slug": slug}, {"$set": data})
+    updated = await db.professions.find_one({"slug": slug})
+    return serialize_mongo_doc(updated)
+
+@api_router.delete("/admin/professions/{slug}")
+async def admin_delete_profession(slug: str, request: Request):
+    if not is_admin(request):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    await db.professions.delete_one({"slug": slug})
+    return {"deleted": True}
+
+# Quests CRUD linked to profession
+@api_router.get("/admin/quests")
+async def admin_list_quests(request: Request, profession_slug: Optional[str] = None, is_enabled: Optional[bool] = None):
+    if not is_admin(request):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    query = {}
+    if profession_slug:
+        query["profession_slug"] = profession_slug
+    if is_enabled is not None:
+        query["is_enabled"] = is_enabled
+    items = await db.profession_quests.find(query).sort([("profession_slug", 1), ("order_index", 1)]).to_list(500)
+    return serialize_mongo_doc(items)
+
+@api_router.post("/admin/quests")
+async def admin_create_quest(request: Request):
+    if not is_admin(request):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    data = await request.json()
+    # validate profession exists
+    prof = await db.professions.find_one({"slug": data.get("profession_slug")})
+    if not prof:
+        raise HTTPException(status_code=400, detail="Invalid profession_slug")
+    data.setdefault("level", 1)
+    data.setdefault("xp_reward", 10)
+    data.setdefault("is_enabled", True)
+    data.setdefault("order_index", 1)
+    data["id"] = str(uuid.uuid4())
+    # Normalize: store as profession_quests
+    await db.profession_quests.insert_one(data)
+    return serialize_mongo_doc(data)
+
+@api_router.put("/admin/quests/{quest_id}")
+async def admin_update_quest(quest_id: str, request: Request):
+    if not is_admin(request):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    data = await request.json()
+    await db.profession_quests.update_one({"id": quest_id}, {"$set": data})
+    updated = await db.profession_quests.find_one({"id": quest_id})
+    return serialize_mongo_doc(updated)
+
+@api_router.delete("/admin/quests/{quest_id}")
+async def admin_delete_quest(quest_id: str, request: Request):
+    if not is_admin(request):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    await db.profession_quests.delete_one({"id": quest_id})
+    return {"deleted": True}
+
+# Admin utility: set user profession and (re)assign quests idempotently
+@api_router.post("/admin/users/{user_id}/set-profession/{slug}")
+async def admin_set_user_profession(user_id: str, slug: str, request: Request):
+    if not is_admin(request):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    prof = await db.professions.find_one({"slug": slug})
+    if not prof:
+        raise HTTPException(status_code=404, detail="Profession not found")
+    await db.users.update_one({"id": user_id}, {"$set": {
+        "profession_slug": prof["slug"],
+        "profession_label": prof["label"],
+        "profession_icon": prof["icon"]
+    }})
+    # initialize progression and assign
+    await profession_service.init_user_progression(user_id, slug)
+    await assign_profession_quests(slug, user_id, idempotent=True)
+    return {"status": "ok"}
+
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Énergie & Bien-être pour soignants™</title>
         <script src="https://cdn.tailwindcss.com"></script>
