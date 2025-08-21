@@ -295,9 +295,8 @@
 
 ## test_plan:
   current_focus:
-    - "Admin UI: /admin page loads, create/delete Profession, create/delete Quest, set profession utility calls with X-Admin-Email"
-  stuck_tasks:
-    - "Admin UI: /admin page loads, create/delete Profession, create/delete Quest, set profession utility calls with X-Admin-Email"
+    - "Backend user endpoint /api/user/me missing - causing dashboard user loading issues"
+  stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
