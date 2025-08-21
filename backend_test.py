@@ -961,7 +961,7 @@ class WellnessAppTester:
         
         admin_headers = {
             'Content-Type': 'application/json',
-            'X-Admin-Email': 'toi@discipline90.com'
+            'X-Admin-Email': 'contact@discipline90.com'
         }
         
         no_admin_headers = {
