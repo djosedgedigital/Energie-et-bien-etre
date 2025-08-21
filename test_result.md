@@ -246,10 +246,24 @@
   test_sequence: 6
   run_ui: true
 
+## frontend:
+  - task: "Admin UI: /admin page loads, create/delete Profession, create/delete Quest, set profession utility calls with X-Admin-Email"
+    implemented: true
+    working: false
+    file: "/app/frontend/src/pages/Admin.js"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "❌ ADMIN UI AUTHENTICATION ISSUE: Admin page loads correctly with proper header 'Back-office — Métiers & Quêtes', admin email input present, professions table loads with 15+ rows, and all forms render properly. However, frontend is not sending X-Admin-Email header in requests despite correct code configuration. Network debugging shows 'No X-Admin-Email header found!' causing 403 errors on admin operations. Backend admin endpoints work correctly when tested directly with curl. Issue appears to be with axios header configuration or React state management in Admin component."
+
 ## test_plan:
   current_focus:
     - "Admin UI: /admin page loads, create/delete Profession, create/delete Quest, set profession utility calls with X-Admin-Email"
-  stuck_tasks: []
+  stuck_tasks:
+    - "Admin UI: /admin page loads, create/delete Profession, create/delete Quest, set profession utility calls with X-Admin-Email"
   test_all: false
   test_priority: "high_first"
 
