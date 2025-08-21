@@ -694,17 +694,7 @@ async def get_checkout_status(session_id: str):
                     )
                 
                 # Send welcome email
-                await email_service.send_email(
-                    to_email=user_email,
-                    subject="Bienvenue dans Énergie & Bien-être !",
-                    html_content=f"""
-                    <h2>Bienvenue dans votre parcours bien-être !</h2>
-                    <p>Félicitations ! Votre paiement a été confirmé.</p>
-                    <p>Vous avez maintenant accès à toutes les fonctionnalités d'Énergie & Bien-être pour soignants™.</p>
-                    <p><a href="{os.environ.get('APP_BASE_URL', '')}/app/dashboard" style="background: #3FB28C; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Accéder au tableau de bord</a></p>
-                    <p>Prenez soin de vous,<br>L'équipe Discipline 90™</p>
-                    """
-                )
+                await email_service.send_welcome_email(user_email, user.get('name', 'Soignant'))
         
         return {
             "status": status.status,
