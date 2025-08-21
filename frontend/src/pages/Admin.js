@@ -100,8 +100,7 @@ const Admin = () => {
   const handleAssign = async (e) => {
     e.preventDefault();
     try {
-      const url = `${API}/admin/users/${assignForm.user_id}/set-profession/${assignForm.slug}`;
-      await axios.post(url, {}, { headers });
+      await client.post(`/users/${assignForm.user_id}/set-profession/${assignForm.slug}`);
       alert("Métier appliqué et quêtes affectées (idempotent)");
     } catch (e) {
       alert("Erreur d'affectation (vérifiez user_id et slug)");
