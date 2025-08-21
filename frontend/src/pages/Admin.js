@@ -255,6 +255,23 @@ const Admin = () => {
 
             <Card>
               <CardHeader>
+              <div className="mb-3 flex items-center gap-3">
+                <div>
+                  <Label>Filtrer par métier</Label>
+                  <select
+                    value={selectedProfession}
+                    onChange={(e) => setSelectedProfession(e.target.value)}
+                    className="border p-2 rounded min-w-[240px]"
+                  >
+                    <option value="">-- Tous les métiers --</option>
+                    {professions.map((p) => (
+                      <option key={p.slug} value={p.slug}>{p.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <Button variant="outline" size="sm" onClick={loadAll} disabled={loading}>Rafraîchir</Button>
+              </div>
+
                 <CardTitle>Quêtes par métier</CardTitle>
               </CardHeader>
               <CardContent>
