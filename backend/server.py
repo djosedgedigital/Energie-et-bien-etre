@@ -892,11 +892,122 @@ async def get_random_quote():
     """Get random motivational quote"""
     import random
     quotes = await db.quotes.find({}).to_list(100)
-    if quotes:
-        selected_quote = random.choice(quotes)
-        return serialize_mongo_doc(selected_quote)
-    else:
-        return {"text": "Bonne journée !", "author": ""}
+    return random.choice(quotes) if quotes else {"text": "Bonne journée !", "author": ""}
+
+# Professions endpoints
+@api_router.get("/professions")
+async def get_professions():
+    """Get all active professions"""
+    try:
+        professions = await profession_service.get_active_professions()
+        return professions
+    except Exception as e:
+        logger.error(f"Error getting professions: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error retrieving professions")
+
+@api_router.get("/professions/{profession_slug}")
+async def get_profession(profession_slug: str):
+    """Get profession by slug"""
+    try:
+        profession = await profession_service.get_profession_by_slug(profession_slug)
+        if not profession:
+            raise HTTPException(status_code=404, detail="Profession not found")
+        return profession
+    except Exception as e:
+        logger.error(f"Error getting profession: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error retrieving profession")
+
+@api_router.get("/professions/{profession_slug}/progression")
+async def get_profession_progression(profession_slug: str):
+    """Get progression levels for a profession"""
+    try:
+        progression = await profession_service.get_progression_for_profession(profession_slug)
+        return {"profession_slug": profession_slug, "levels": progression}
+    except Exception as e:
+        logger.error(f"Error getting profession progression: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error retrieving progression")
+
+@api_router.get("/users/{user_id}/progression")
+async def get_user_progression(user_id: str):
+    """Get user progression"""
+    try:
+        progression = await profession_service.get_user_progression(user_id)
+        if not progression:
+            # Initialiser si pas de progression
+            user = await db.users.find_one({"id": user_id})
+            if user and user.get("profession_slug"):
+                progression = await profession_service.init_user_progression(
+                    user_id, user["profession_slug"]
+                )
+        
+        return progression or {}
+    except Exception as e:
+        logger.error(f"Error getting user progression: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error retrieving user progression")
+
+@api_router.put("/users/{user_id}/profession")
+async def update_user_profession(user_id: str, profession_data: UserUpdateProfession):
+    """Update user profession"""
+    try:
+        # Vérifier que la profession existe
+        profession = await profession_service.get_profession_by_slug(profession_data.profession_slug)
+        if not profession:
+            raise HTTPException(status_code=404, detail="Profession not found")
+        
+        # Mettre à jour utilisateur
+        await db.users.update_one(
+            {"id": user_id},
+            {
+                "$set": {
+                    "profession_slug": profession_data.profession_slug,
+                    "profession_label": profession["label"],
+                    "profession_icon": profession["icon"]
+                }
+            }
+        )
+        
+        # Initialiser la progression pour cette profession
+        await profession_service.init_user_progression(user_id, profession_data.profession_slug)
+        
+        return {"message": "Profession updated successfully"}
+        
+    except Exception as e:
+        logger.error(f"Error updating user profession: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error updating profession")
+
+@api_router.get("/users/{user_id}/profession-quests")
+async def get_user_profession_quests(user_id: str):
+    """Get profession-specific quests for user"""
+    try:
+        user = await db.users.find_one({"id": user_id})
+        if not user or not user.get("profession_slug"):
+            return {"profession_quests": []}
+        
+        profession = await profession_service.get_profession_by_slug(user["profession_slug"])
+        if not profession:
+            return {"profession_quests": []}
+        
+        recommended_quests = profession.get("recommended_quests", [])
+        
+        # Ajouter des IDs uniques aux quêtes et vérifier le statut
+        profession_quests = []
+        for quest in recommended_quests:
+            quest_with_id = {
+                **quest,
+                "id": f"prof_{user['profession_slug']}_{quest['title'].lower().replace(' ', '_')}",
+                "profession_slug": user["profession_slug"],
+                "status": "todo"  # Peut être étendu pour checker le statut réel
+            }
+            profession_quests.append(quest_with_id)
+        
+        return {
+            "profession": profession,
+            "profession_quests": profession_quests
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting profession quests: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error retrieving profession quests")
 
 # Include router
 app.include_router(api_router)
