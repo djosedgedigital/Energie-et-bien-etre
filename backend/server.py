@@ -724,9 +724,14 @@ async def create_user(user_data: UserCreate):
         
         await db.users.insert_one(user_dict)
         
-        # Initialiser la progression si profession fournie
+        # Initialiser la progression si profession fournie et assigner les quêtes recommandées
         if user_data.profession_slug:
             await profession_service.init_user_progression(user_dict["id"], user_data.profession_slug)
+            # Assign profession quests to the user (Phase 2)
+            try:
+                await assign_profession_quests(user_data.profession_slug, user_dict["id"])  # call handler
+            except Exception as _:
+                logger.warning("Could not assign profession quests during onboarding; continuing")
         
         return serialize_mongo_doc(user_dict)
         
