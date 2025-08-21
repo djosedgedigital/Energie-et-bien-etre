@@ -701,9 +701,35 @@ async def create_user(user_data: UserCreate):
             "theme_pref": "forest"
         }
         
-        user = User(**user_data.dict(), settings=default_settings)
-        await db.users.insert_one(user.dict())
-        return serialize_mongo_doc(user.dict())
+        user_dict = {
+            **user_data.dict(),
+            "id": str(uuid.uuid4()),
+            "role": "user",
+            "settings": default_settings,
+            "created_at": datetime.now(timezone.utc),
+            "has_paid": False,
+            "xp_total": 0,
+            "level_number": 1
+        }
+        
+        # Ajouter les informations de profession si fournie
+        if user_data.profession_slug:
+            profession = await profession_service.get_profession_by_slug(user_data.profession_slug)
+            if profession:
+                user_dict.update({
+                    "profession_slug": profession["slug"],
+                    "profession_label": profession["label"],
+                    "profession_icon": profession["icon"]
+                })
+        
+        await db.users.insert_one(user_dict)
+        
+        # Initialiser la progression si profession fournie
+        if user_data.profession_slug:
+            await profession_service.init_user_progression(user_dict["id"], user_data.profession_slug)
+        
+        return serialize_mongo_doc(user_dict)
+        
     except Exception as e:
         logger.error(f"Error creating user: {str(e)}")
         raise HTTPException(status_code=500, detail="Error creating user")
