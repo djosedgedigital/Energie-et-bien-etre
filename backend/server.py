@@ -3,7 +3,7 @@ from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Tuple, Set
 from datetime import datetime, timedelta, timezone
 from contextlib import asynccontextmanager
 import os
