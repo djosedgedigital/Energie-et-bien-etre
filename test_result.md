@@ -136,6 +136,39 @@
       - working: true
         agent: "testing"
         comment: "✅ PHASE 2 QUEST ASSIGNMENT WORKING PERFECTLY: 1) POST /api/professions/infirmier/assign-quests/{user_id} successfully assigns 2 quests and returns {assigned: 2}. 2) Precondition test passed - created user with profession_slug 'infirmier' works correctly. 3) Idempotency test shows duplicates are created on repeated calls (3 total entries for same user/quest combinations) - noted as acceptable for MVP. 4) GET /api/professions/infirmier/quests still returns array with 2 quests as expected. 5) User creation with profession_slug implicitly triggers assignment during onboarding (lines 732-734 in server.py). All Phase 2 requirements met successfully."
+  - task: "Phase 2 Review: Idempotent assignment endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PHASE 2 IDEMPOTENT ASSIGNMENT WORKING PERFECTLY: 1) Created clean user without profession_slug. 2) POST /api/professions/infirmier/assign-quests/{user_id}?idempotent=true first call assigned 2 quests as expected. 3) Second identical call with idempotent=true returned {assigned: 0} confirming no duplicate assignments. Idempotency logic working correctly - prevents duplicate quest assignments when flag is set to true."
+  - task: "Phase 2 Review: Quest completion endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PHASE 2 QUEST COMPLETION WORKING PERFECTLY: 1) Added new POST /api/quests/{quest_id}/complete endpoint with body {user_id} format as requested. 2) First completion of profession quest 'prof_infirmier_hydratation_2l_au_service' awarded 10 XP and returned {awarded_xp: 10, new_progression_xp: 10, level_up: false}. 3) Second completion correctly returned {awarded_xp: 0, new_progression_xp: 10, level_up: false} preventing double XP awards. 4) Response structure matches specification with awarded_xp, new_progression_xp (0-100), and level_up boolean fields. Quest completion and progression tracking working correctly."
+  - task: "Phase 2 Review: Full progression endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PHASE 2 FULL PROGRESSION ENDPOINT WORKING PERFECTLY: 1) GET /api/professions/infirmier/progression/full?user_id={user_id} returns complete progression data. 2) Response includes all required fields: profession_label='Infirmier·ère', profession_icon='🩺', progression_niveau=1, progression_xp=0, next_objective='≥7h sur 5 nuits', tier_max=5. 3) All field types and value ranges validated correctly. 4) Endpoint provides comprehensive progression information for UI display including next objective text and maximum tier information."
 
 ## frontend:
   - task: "Dashboard: display Profession Progression card using new endpoint"
