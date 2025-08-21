@@ -411,7 +411,8 @@ const Dashboard = () => {
           // Create demo user if doesn't exist
           const createResponse = await axios.post(`${API}/users`, {
             email: "demo@example.com",
-            name: "Utilisateur Demo"
+            name: "Utilisateur Demo",
+            profession_slug: "infirmier"  // Default profession for demo
           });
           userData = createResponse.data;
         }
@@ -460,10 +461,19 @@ const Dashboard = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4">
-              <Heart className="h-8 w-8 text-emerald-600" />
+              <div className="w-8 h-8 bg-gradient-to-r from-slate-800 to-emerald-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">E&B</span>
+              </div>
               <div>
                 <h1 className="text-xl font-bold text-slate-800">Énergie & Bien-être</h1>
-                <p className="text-sm text-slate-600">Bonjour {user?.name || 'Soignant'} !</p>
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm text-slate-600">Bonjour {user?.name || 'Soignant'} !</p>
+                  {user?.profession_icon && user?.profession_label && (
+                    <Badge variant="outline" className="text-xs">
+                      {user.profession_icon} {user.profession_label}
+                    </Badge>
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -541,6 +551,32 @@ const Dashboard = () => {
               </Card>
             )}
 
+            {/* Profession Quest */}
+            {dashboardData.profession_quest && (
+              <Card className="border-l-4 border-l-emerald-500">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <span className="mr-2">{user?.profession_icon || '🩺'}</span>
+                    Quête {user?.profession_label || 'Métier'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-semibold mb-1">{dashboardData.profession_quest.title}</h3>
+                      <p className="text-sm text-slate-600">{dashboardData.profession_quest.description}</p>
+                      <Badge variant="secondary" className="mt-2">
+                        +{dashboardData.profession_quest.points_reward} XP
+                      </Badge>
+                    </div>
+                    <Button size="sm" variant="outline">
+                      <Play className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Quick Habits Update */}
             <HabitsTracker 
               userId={user?.id} 
@@ -550,7 +586,7 @@ const Dashboard = () => {
             />
           </div>
 
-          {/* Right Column - Quote & Stats */}
+          {/* Right Column - Quote, Stats & Progression */}
           <div className="space-y-6">
             {/* Daily Quote */}
             {dashboardData.quote && (
@@ -572,12 +608,43 @@ const Dashboard = () => {
               </Card>
             )}
 
+            {/* Progression Métier */}
+            {dashboardData.user_progression && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Trophy className="h-5 w-5 text-yellow-500 mr-2" />
+                    Progression {user?.profession_label}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center mb-4">
+                    <p className="text-sm text-slate-600 mb-2">
+                      Niveau {dashboardData.user_progression.niveau_actuel || 1} / 5
+                    </p>
+                    <Progress 
+                      value={(dashboardData.user_progression.niveau_actuel || 1) * 20} 
+                      className="w-full h-2" 
+                    />
+                    <p className="text-xs text-slate-500 mt-1">
+                      {dashboardData.user_progression.xp_total || 0} XP métier
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <Button variant="outline" size="sm" className="text-xs">
+                      Voir progression complète
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Progress to Next Level */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Trophy className="h-5 w-5 text-yellow-500 mr-2" />
-                  Progression
+                  Progression générale
                 </CardTitle>
               </CardHeader>
               <CardContent>
