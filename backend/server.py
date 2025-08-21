@@ -181,6 +181,36 @@ class BrevoEmailService:
 email_service = BrevoEmailService()
 
 # Helper functions
+def prepare_for_mongo(data):
+    """Prepare data for MongoDB insertion"""
+    if isinstance(data, dict):
+        # Remove None values and prepare data
+        return {k: v for k, v in data.items() if v is not None}
+    return data
+
+def serialize_mongo_doc(doc):
+    """Convert MongoDB document to JSON-serializable format"""
+    if not doc:
+        return None
+    if isinstance(doc, list):
+        return [serialize_mongo_doc(item) for item in doc]
+    if isinstance(doc, dict):
+        # Remove MongoDB _id field and convert other ObjectIds
+        serialized = {}
+        for key, value in doc.items():
+            if key == '_id':
+                continue  # Skip MongoDB _id field
+            elif hasattr(value, 'isoformat'):  # datetime objects
+                serialized[key] = value.isoformat()
+            elif isinstance(value, dict):
+                serialized[key] = serialize_mongo_doc(value)
+            elif isinstance(value, list):
+                serialized[key] = [serialize_mongo_doc(item) for item in value]
+            else:
+                serialized[key] = value
+        return serialized
+    return doc
+
 def calculate_energy_percentage(habit_log: HabitLog, user_settings: Dict):
     """Calculate daily energy percentage based on habit completion"""
     goals = {
