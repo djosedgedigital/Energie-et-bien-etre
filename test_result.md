@@ -119,6 +119,20 @@
       - working: true
         agent: "testing"
         comment: "✅ ALL PROFESSION ENDPOINTS WORKING PERFECTLY: 1) GET /api/professions returns 15 professions with all required fields (slug, label, icon, order_index, is_active). 2) GET /api/professions/infirmier/progression returns correct structure with profession_label='Infirmier·ère', profession_icon='🩺', progression_niveau=1, progression_xp=0. 3) Created demo user (demo@example.com) and tested with user_id - returns same structure with user-specific progression. 4) GET /api/professions/infirmier/quests returns 2 recommended quests from seed data with all required fields (title, description, points_reward, type). All endpoints respond with HTTP 200 and correct JSON structures as specified."
+      - working: true
+        agent: "testing"
+        comment: "All profession endpoints returned 200 with expected structures."
+  - task: "Assign profession quests to user at onboarding"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Added POST /api/professions/{slug}/assign-quests/{user_id} and invoked it during user creation when profession is provided."
 
 ## frontend:
   - task: "Dashboard: display Profession Progression card using new endpoint"
