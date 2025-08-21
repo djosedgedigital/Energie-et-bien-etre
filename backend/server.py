@@ -823,7 +823,7 @@ async def get_profession_quests(slug: str):
         raise HTTPException(status_code=500, detail="Error retrieving quests")
 
 @api_router.post("/professions/{slug}/assign-quests/{user_id}")
-async def assign_profession_quests(slug: str, user_id: str):
+async def assign_profession_quests(slug: str, user_id: str, idempotent: bool = False):
     """Assign profession recommended quests to a user (simple duplication into user_profession_quests)."""
     try:
         # Get profession
