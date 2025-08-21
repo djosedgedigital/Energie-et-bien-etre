@@ -848,11 +848,26 @@ async def get_profession_progression(slug: str, user_id: Optional[str] = None):
 
 @api_router.get("/professions/{slug}/quests")
 async def get_profession_quests(slug: str):
-    """Return recommended quests for a profession (simple seed data for now)."""
+    """Return profession quests from admin collection if present, else fallback to seed."""
     try:
         profession = await profession_service.get_profession_by_slug(slug)
         if not profession:
             raise HTTPException(status_code=404, detail="Profession not found")
+        # Prefer admin-defined quests
+        admin_quests = await db.profession_quests.find({
+            "profession_slug": slug,
+            "is_enabled": True
+        }).sort("order_index", 1).to_list(200)
+        if admin_quests:
+            result = []
+            for q in admin_quests:
+                result.append({
+                    "title": q.get("title"),
+                    "description": q.get("description"),
+                    "points_reward": q.get("points_reward", q.get("xp_reward", 0)),
+                    "type": q.get("type", "daily")
+                })
+            return serialize_mongo_doc(result)
         return profession.get("recommended_quests", [])
     except HTTPException:
         raise
