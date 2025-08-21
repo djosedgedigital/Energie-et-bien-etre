@@ -37,6 +37,22 @@ const LandingPage = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [selectedProfession, setSelectedProfession] = useState('');
+  const [professions, setProfessions] = useState([]);
+
+  useEffect(() => {
+    // Charger les professions
+    const loadProfessions = async () => {
+      try {
+        const response = await axios.get(`${API}/professions`);
+        setProfessions(response.data);
+      } catch (err) {
+        console.error('Error loading professions:', err);
+      }
+    };
+    
+    loadProfessions();
+  }, []);
 
   const handlePayment = async () => {
     setIsLoading(true);
@@ -63,11 +79,17 @@ const LandingPage = () => {
       {/* Header */}
       <header className="container mx-auto px-4 py-6">
         <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <Heart className="h-8 w-8 text-emerald-600" />
-            <span className="text-xl font-bold text-slate-800">Énergie & Bien-être™</span>
+          <div className="flex items-center space-x-3">
+            <div className="relative">
+              <div className="w-12 h-12 bg-gradient-to-r from-slate-800 to-emerald-600 rounded-lg flex items-center justify-center border border-slate-200 shadow-sm">
+                <span className="text-white font-bold text-lg">E&B</span>
+              </div>
+            </div>
+            <div>
+              <span className="text-xl font-bold text-slate-800">Énergie & Bien-être™</span>
+              <div className="text-xs text-slate-600">par Discipline 90™</div>
+            </div>
           </div>
-          <span className="text-sm text-slate-600">par Discipline 90™</span>
         </div>
       </header>
 
@@ -84,19 +106,24 @@ const LandingPage = () => {
             même avec des horaires décalés.
           </p>
 
-          <div className="flex flex-wrap justify-center gap-4 mb-12">
-            <Badge variant="secondary" className="px-4 py-2 text-sm">
-              <Users className="h-4 w-4 mr-2" />
-              Infirmiers
-            </Badge>
-            <Badge variant="secondary" className="px-4 py-2 text-sm">
-              <Heart className="h-4 w-4 mr-2" />
-              Aides-soignants
-            </Badge>
-            <Badge variant="secondary" className="px-4 py-2 text-sm">
-              <Activity className="h-4 w-4 mr-2" />
-              Kinés
-            </Badge>
+          {/* Sélecteur de profession */}
+          <div className="max-w-md mx-auto mb-8">
+            <Label className="block text-left mb-3 text-slate-700 font-medium">
+              Choisissez votre métier
+            </Label>
+            <select 
+              value={selectedProfession}
+              onChange={(e) => setSelectedProfession(e.target.value)}
+              className="w-full p-4 border border-slate-200 rounded-lg bg-white text-slate-700 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            >
+              <option value="">Sélectionnez votre profession...</option>
+              {professions.map((prof) => (
+                <option key={prof.slug} value={prof.slug}>
+                  {prof.icon} {prof.label}
+                </option>
+              ))}
+              <option value="autre">Autre (préciser)</option>
+            </select>
           </div>
 
           <Button 
