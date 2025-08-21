@@ -874,7 +874,11 @@ async def get_random_quote():
     """Get random motivational quote"""
     import random
     quotes = await db.quotes.find({}).to_list(100)
-    return random.choice(quotes) if quotes else {"text": "Bonne journée !", "author": ""}
+    if quotes:
+        selected_quote = random.choice(quotes)
+        return serialize_mongo_doc(selected_quote)
+    else:
+        return {"text": "Bonne journée !", "author": ""}
 
 # Include router
 app.include_router(api_router)
