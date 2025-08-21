@@ -94,6 +94,9 @@ class CheckoutRequest(BaseModel):
 class UserUpdateProfession(BaseModel):
     profession_slug: str
 
+class QuestCompleteRequest(BaseModel):
+    user_id: str
+
 # Email service
 class BrevoEmailService:
     def __init__(self):
