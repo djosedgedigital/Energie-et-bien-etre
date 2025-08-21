@@ -93,13 +93,83 @@ const LandingPage = () => {
   );
 };
 
-// Dashboard Component (simplified for admin testing)
+// Dashboard with Profession Progression + Quests
 const Dashboard = () => {
+  const [user, setUser] = useState(null);
+  const [progress, setProgress] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchProgression = async (u = user) => {
+    if (!u?.profession_slug) return;
+    try {
+      const { data } = await axios.get(`${API}/professions/${u.profession_slug}/progression/full`, {
+        params: { user_id: u.id }
+      });
+      setProgress(data);
+    } catch (e) {
+      console.warn('No progression yet');
+    }
+  };
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const me = await axios.get(`${API}/user/me`);
+        setUser(me.data);
+        if (me.data?.profession_slug) {
+          await fetchProgression(me.data);
+        }
+      } catch (e) {
+        console.error('Unable to load user', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
-        <p>Dashboard functionality will be implemented here.</p>
+      <div className="container mx-auto px-4 py-8 space-y-6">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+
+        {/* Progression Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Progression métier</CardTitle>
+            <CardDescription>
+              {progress?.profession_label || user?.profession_label || 'Métier non défini'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-slate-600">Niveau {progress?.progression_niveau || 1} / {progress?.tier_max || 5}</div>
+              <div className="text-sm">{typeof progress?.progression_xp === 'number' ? `${progress?.progression_xp}%` : '0%'}</div>
+            </div>
+            <Progress value={typeof progress?.progression_xp === 'number' ? progress?.progression_xp : 0} />
+            {progress?.next_objective && (
+              <div className="text-xs text-slate-500 mt-2">Prochain objectif : {progress.next_objective}</div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Profession Quests */}
+        {user?.profession_slug && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Quêtes recommandées — {user?.profession_label}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ProfessionQuests
+                user={user}
+                userId={user?.id}
+                professionSlug={user?.profession_slug}
+                refreshProgression={fetchProgression}
+              />
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
