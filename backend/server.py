@@ -840,7 +840,7 @@ async def get_user_quests(user_id: str):
     
     return {
         "daily_quest": daily_quest,
-        "other_quests": all_quests[:6]  # Limit for UI
+        "other_quests": [serialize_mongo_doc(quest) for quest in all_quests[:6]]  # Limit for UI
     }
 
 @api_router.post("/quests/{user_id}/{quest_id}/complete")
