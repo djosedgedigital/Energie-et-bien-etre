@@ -256,34 +256,44 @@ async def award_points_and_check_badges(user_id: str, points: int):
 
 async def get_daily_quest_for_user(user_id: str) -> Optional[Dict]:
     """Get today's daily quest for user"""
-    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    
-    # Check if user already has today's quest
-    user_quest = await db.user_quests.find_one({
-        "user_id": user_id,
-        "date_assigned": {"$gte": today}
-    })
-    
-    if user_quest:
-        quest = await db.quests.find_one({"id": user_quest["quest_id"]})
-        return {**quest, "user_quest": user_quest} if quest else None
-    
-    # Assign new daily quest
-    daily_quests = await db.quests.find({"type": "daily", "is_active": True}).to_list(100)
-    if daily_quests:
-        import random
-        selected_quest = random.choice(daily_quests)
+    try:
+        today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
         
-        user_quest_data = UserQuest(
-            user_id=user_id,
-            quest_id=selected_quest["id"],
-            date_assigned=datetime.now(timezone.utc)
-        )
+        # Check if user already has today's quest
+        user_quest = await db.user_quests.find_one({
+            "user_id": user_id,
+            "date_assigned": {"$gte": today}
+        })
         
-        await db.user_quests.insert_one(user_quest_data.dict())
-        return {**selected_quest, "user_quest": user_quest_data.dict()}
-    
-    return None
+        if user_quest:
+            quest = await db.quests.find_one({"id": user_quest["quest_id"]})
+            if quest:
+                return {
+                    **serialize_mongo_doc(quest), 
+                    "user_quest": serialize_mongo_doc(user_quest)
+                }
+        
+        # Assign new daily quest
+        daily_quests = await db.quests.find({"type": "daily", "is_active": True}).to_list(100)
+        if daily_quests:
+            selected_quest = random.choice(daily_quests)
+            
+            user_quest_data = UserQuest(
+                user_id=user_id,
+                quest_id=selected_quest["id"],
+                date_assigned=datetime.now(timezone.utc)
+            )
+            
+            await db.user_quests.insert_one(user_quest_data.dict())
+            return {
+                **serialize_mongo_doc(selected_quest), 
+                "user_quest": serialize_mongo_doc(user_quest_data.dict())
+            }
+        
+        return None
+    except Exception as e:
+        logger.error(f"Error getting daily quest for user {user_id}: {str(e)}")
+        return None
 
 # Scheduler functions
 async def send_daily_recap_emails():
