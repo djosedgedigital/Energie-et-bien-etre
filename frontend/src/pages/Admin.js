@@ -48,7 +48,10 @@ const Admin = () => {
   const handleProfSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API}/admin/professions`, profForm, { headers });
+      const { sanitizeSlug } = await import("../helpers/slug");
+      const payload = { ...profForm };
+      payload.slug = sanitizeSlug(payload.slug || payload.label);
+      await axios.post(`${API}/admin/professions`, payload, { headers });
       setProfForm({ label: "", slug: "", icon: "", order_index: 1, active: true });
       await loadAll();
     } catch (e) {
