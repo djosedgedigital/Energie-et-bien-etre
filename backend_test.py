@@ -5,7 +5,7 @@ from datetime import datetime
 import time
 
 class WellnessAppTester:
-    def __init__(self, base_url="https://care-recharge-1.preview.emergentagent.com"):
+    def __init__(self, base_url="https://energie-wellbeing.preview.emergentagent.com"):
         self.base_url = base_url
         self.api_url = f"{base_url}/api"
         self.tests_run = 0
