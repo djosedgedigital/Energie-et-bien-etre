@@ -953,6 +953,41 @@ async def get_profession_progression_full(slug: str, user_id: Optional[str] = No
     except Exception as e:
         logger.error(f"Error getting full progression: {str(e)}")
         raise HTTPException(status_code=500, detail="Error retrieving full progression")
+        progression_xp = 0
+        next_objective = None
+        tier_max = 5
+
+        if user_id:
+            user_prog = await profession_service.get_user_progression(user_id)
+            if user_prog and user_prog.get("profession_slug") == slug:
+                progression_niveau = user_prog.get("niveau_actuel", 1)
+                progression_xp = int(min(100, user_prog.get("xp_total", 0) % 100))
+                # infer next objective from PROGRESSION_SEED in DB
+                levels = await profession_service.get_progression_for_profession(slug)
+                tier_max = max([lv.get("niveau", 0) for lv in levels] or [5])
+                next_level = min(progression_niveau + 1, tier_max)
+                # find current or next objective text
+                target_level = next_level if next_level > progression_niveau else progression_niveau
+                obj = None
+                for lv in levels:
+                    if lv.get("niveau") == target_level:
+                        obj = lv.get("objectif")
+                        break
+                next_objective = obj or "Continuer à progresser sur votre arbre métier"
+
+        return {
+            "profession_label": profession.get("label"),
+            "profession_icon": profession.get("icon"),
+            "progression_niveau": progression_niveau,
+            "progression_xp": progression_xp,
+            "next_objective": next_objective,
+            "tier_max": tier_max
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting full progression: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error retrieving full progression")
 
 
 # Dashboard endpoints
