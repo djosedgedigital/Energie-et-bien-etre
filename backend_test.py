@@ -491,6 +491,12 @@ class WellnessAppTester:
         self.test_create_demo_user_and_progression()
         self.test_profession_quests()
         
+        # Phase 2 specific tests (CURRENT FOCUS)
+        print("\n🎯 Phase 2 Profession Quest Assignment Tests:")
+        self.test_phase2_assign_profession_quests()
+        self.test_phase2_verify_profession_quests_still_works()
+        self.test_phase2_user_creation_implicit_assignment()
+        
         # Core functionality tests
         print("\n🎯 Core Functionality Tests:")
         self.test_dashboard_data()
