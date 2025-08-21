@@ -793,6 +793,20 @@ async def get_dashboard_data(user_id: str):
         if daily_quest:
             daily_quest = serialize_mongo_doc(daily_quest)
         
+        # Get profession-specific quest if user has a profession
+        profession_quest = None
+        if user.get("profession_slug"):
+            prof_quests_data = await get_user_profession_quests(user_id)
+            if isinstance(prof_quests_data, dict) and prof_quests_data.get("profession_quests"):
+                profession_quest = prof_quests_data["profession_quests"][0]  # Premier quest de profession
+        
+        # Get user progression
+        user_progression = None
+        if user.get("profession_slug"):
+            user_progression = await profession_service.get_user_progression(user_id)
+            if not user_progression:
+                user_progression = await profession_service.init_user_progression(user_id, user["profession_slug"])
+        
         # Get random quote
         quotes = await db.quotes.find({}).to_list(50)
         if quotes:
@@ -800,16 +814,21 @@ async def get_dashboard_data(user_id: str):
         else:
             quote = {"text": "Bonne journée !", "author": ""}
         
-        return {
+        dashboard_data = {
             "user": user,
             "energy_percentage": energy,
             "habit_log": habit_log,
             "daily_quest": daily_quest,
+            "profession_quest": profession_quest,
+            "user_progression": user_progression,
             "quote": quote,
             "level": user.get("level_number", 1),
             "xp_total": user.get("xp_total", 0),
             "xp_to_next_level": 150 - (user.get("xp_total", 0) % 150)
         }
+        
+        return dashboard_data
+        
     except Exception as e:
         logger.error(f"Error getting dashboard data for user {user_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Error loading dashboard data")
