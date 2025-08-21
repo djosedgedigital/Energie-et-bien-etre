@@ -814,6 +814,46 @@ async def get_profession_quests(slug: str):
         logger.error(f"Error getting profession quests: {str(e)}")
         raise HTTPException(status_code=500, detail="Error retrieving quests")
 
+@api_router.post("/professions/{slug}/assign-quests/{user_id}")
+async def assign_profession_quests(slug: str, user_id: str):
+    """Assign profession recommended quests to a user (simple duplication into user_profession_quests)."""
+    try:
+        # Get profession
+        profession = await profession_service.get_profession_by_slug(slug)
+        if not profession:
+            raise HTTPException(status_code=404, detail="Profession not found")
+        # Ensure user exists
+        user = await db.users.find_one({"id": user_id})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        quests = profession.get("recommended_quests", [])
+        user_quests_docs = []
+        for q in quests:
+            uq = {
+                "id": str(uuid.uuid4()),
+                "user_id": user_id,
+                "profession_slug": slug,
+                "quest_id": f"prof_{slug}_{q['title'].lower().replace(' ', '_')}",
+                "title": q.get("title"),
+                "description": q.get("description"),
+                "points_reward": q.get("points_reward", 0),
+                "type": q.get("type"),
+                "status": "todo",
+                "assigned_at": datetime.now(timezone.utc)
+            }
+            user_quests_docs.append(uq)
+        
+        if user_quests_docs:
+            await db.user_profession_quests.insert_many(user_quests_docs)
+        
+        return {"assigned": len(user_quests_docs)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error assigning profession quests: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error assigning quests")
+
 # Dashboard endpoints
 @api_router.get("/dashboard/{user_id}")
 async def get_dashboard_data(user_id: str):
