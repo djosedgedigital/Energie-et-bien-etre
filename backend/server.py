@@ -37,11 +37,30 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 # Initialize Stripe
-stripe_api_key = os.environ.get('STRIPE_API_KEY')
+stripe_api_key = os.environ.get('STRIPE_SECRET_KEY')  # Updated to use STRIPE_SECRET_KEY instead of STRIPE_API_KEY
+stripe_public_key = os.environ.get('STRIPE_PUBLIC_KEY')
 
 # Email configuration
 brevo_api_key = os.environ.get('BREVO_API_KEY')
-email_from = os.environ.get('EMAIL_FROM')
+email_from = os.environ.get('EMAIL_FROM', 'app@discipline90.com')
+email_reply_to = os.environ.get('EMAIL_REPLY_TO', 'support@discipline90.com')
+
+# App configuration
+app_name = os.environ.get('APP_NAME', 'Énergie & Bien-être pour soignants™')
+app_base_url = os.environ.get('APP_BASE_URL', 'https://app.discipline90.com')
+landing_url = os.environ.get('LANDING_URL', 'https://energie-bien-etre.discipline90.com')
+price_eur_cents = int(os.environ.get('PRICE_EUR', '3900'))  # Price in cents
+price_name = os.environ.get('PRICE_NAME', 'energie-bien-etre-access')
+
+# CRON configuration
+cron_enabled = os.environ.get('CRON_DAILY_RECAP_ENABLED', 'true').lower() == 'true'
+cron_hour = int(os.environ.get('CRON_DAILY_RECAP_HOUR_UTC', '5'))
+cron_minute = int(os.environ.get('CRON_DAILY_RECAP_MINUTE', '0'))
+
+# Template IDs (optional)
+template_welcome_id = os.environ.get('BREVO_TEMPLATE_WELCOME_ID')
+template_purchase_id = os.environ.get('BREVO_TEMPLATE_PURCHASE_ID')
+template_daily_recap_id = os.environ.get('BREVO_TEMPLATE_DAILY_RECAP_ID')
 
 # Initialize scheduler
 scheduler = AsyncIOScheduler()
