@@ -625,10 +625,12 @@ async def create_checkout_session(checkout_request: CheckoutRequest):
         webhook_url = f"{host_url}/api/webhook/stripe"
         stripe_checkout = StripeCheckout(api_key=stripe_api_key, webhook_url=webhook_url)
         
-        # Fixed price for the service (39€)
-        amount = float(os.environ.get('PRICE_EUR', '39.00'))
-        success_url = f"{host_url}/app/dashboard?payment=success&session_id={{CHECKOUT_SESSION_ID}}"
-        cancel_url = f"{host_url}/?payment=canceled"
+        # Fixed price for the service (39€ = 3900 cents)
+        amount = price_eur_cents / 100  # Convert cents to euros for emergentintegrations
+        
+        # Use configured URLs or fallback to request origin
+        success_url = os.environ.get('STRIPE_SUCCESS_URL', f"{host_url}/app/dashboard?payment=success&session_id={{CHECKOUT_SESSION_ID}}")
+        cancel_url = os.environ.get('STRIPE_CANCEL_URL', f"{host_url}/?payment=canceled")
         
         # Create checkout session
         session_request = CheckoutSessionRequest(
@@ -636,7 +638,7 @@ async def create_checkout_session(checkout_request: CheckoutRequest):
             currency="EUR", 
             success_url=success_url,
             cancel_url=cancel_url,
-            metadata={"product": "energie-bien-etre-access"}
+            metadata={"product": price_name, "app": app_name}
         )
         
         session = await stripe_checkout.create_checkout_session(session_request)
@@ -647,7 +649,7 @@ async def create_checkout_session(checkout_request: CheckoutRequest):
             user_email="",  # Will be updated after payment
             amount=amount,
             currency="EUR",
-            metadata={"product": "energie-bien-etre-access"}
+            metadata={"product": price_name, "app": app_name}
         )
         await db.payment_transactions.insert_one(transaction.dict())
         
