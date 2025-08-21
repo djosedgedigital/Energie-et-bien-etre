@@ -395,6 +395,7 @@ const Dashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [professionProgress, setProfessionProgress] = useState(null);
 
   // Mock user ID for demo
   const userId = "demo-user-123";
