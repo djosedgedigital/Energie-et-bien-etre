@@ -742,6 +742,37 @@ async def create_user(user_data: UserCreate):
         logger.error(f"Error creating user: {str(e)}")
         raise HTTPException(status_code=500, detail="Error creating user")
 
+@api_router.put("/users/{user_id}")
+async def update_user(user_id: str, update_data: dict):
+    """Update user profession"""
+    try:
+        user = await db.users.find_one({"id": user_id})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # If updating profession_slug, also update related fields
+        if "profession_slug" in update_data:
+            profession = await profession_service.get_profession_by_slug(update_data["profession_slug"])
+            if profession:
+                update_data.update({
+                    "profession_label": profession["label"],
+                    "profession_icon": profession["icon"]
+                })
+                # Initialize progression if not exists
+                await profession_service.init_user_progression(user_id, update_data["profession_slug"])
+                # Assign profession quests
+                try:
+                    await assign_profession_quests(update_data["profession_slug"], user_id)
+                except Exception as e:
+                    logger.warning(f"Could not assign profession quests: {e}")
+        
+        await db.users.update_one({"id": user_id}, {"$set": update_data})
+        updated_user = await db.users.find_one({"id": user_id})
+        return serialize_mongo_doc(updated_user)
+    except Exception as e:
+        logger.error(f"Error updating user: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error updating user")
+
 @api_router.get("/users/{user_id}", response_model=User)
 async def get_user(user_id: str):
     """Get user by ID"""
