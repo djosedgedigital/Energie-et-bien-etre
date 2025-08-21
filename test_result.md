@@ -156,11 +156,14 @@
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "testing"
         comment: "❌ ADMIN UTILITY ENDPOINT NOT IMPLEMENTED: POST /api/admin/users/{user_id}/set-profession/{profession_slug} returns 404 Not Found. This endpoint should return 200 {status:'ok'} with admin header X-Admin-Email: toi@discipline90.com, and 403 without admin header. Admin authentication framework exists but utility endpoint missing."
+      - working: false
+        agent: "testing"
+        comment: "❌ ADMIN UTILITY ENDPOINT STILL NOT IMPLEMENTED: Re-tested with correct admin header X-Admin-Email: contact@discipline90.com. ADMIN_EMAILS is properly configured and admin guard function is_admin() works correctly, but POST /api/admin/users/{user_id}/set-profession/{profession_slug} still returns 404 Not Found. The authentication framework is ready but the actual admin utility endpoint needs to be implemented."
   - task: "Assign profession quests to user at onboarding"
     implemented: true
     working: true
