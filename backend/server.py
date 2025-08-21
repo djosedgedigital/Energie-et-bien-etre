@@ -422,6 +422,13 @@ app.add_middleware(
 )
 
 # API Router
+# Simple admin guard based on header X-Admin-Email and env ADMIN_EMAILS
+ADMIN_EMAILS = [e.strip() for e in os.environ.get('ADMIN_EMAILS', '').split(',') if e.strip()]
+
+def is_admin(request: Request) -> bool:
+    admin_email = request.headers.get('X-Admin-Email', '')
+    return admin_email in ADMIN_EMAILS
+
 api_router = APIRouter(prefix="/api")
 
 # Seed data
