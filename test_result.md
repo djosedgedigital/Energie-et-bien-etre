@@ -157,8 +157,8 @@
         agent: "testing"
         comment: "✅ ADMIN QUEST CRUD ENDPOINTS WORKING PERFECTLY: Fixed routing issue by moving admin endpoints before app.include_router() call. All endpoints now working correctly: 1) GET /api/admin/quests returns 403 without header, 200 with admin header X-Admin-Email: contact@discipline90.com (returns array of admin-defined quests). 2) POST /api/admin/quests returns 403 without header, 200 with header (creates quest successfully with profession_slug validation). 3) PUT /api/admin/quests/{quest_id} returns 403 without header, 200 with header (updates quest successfully). 4) DELETE /api/admin/quests/{quest_id} returns 403 without header, 200 with header (deletes quest successfully). Quest preference system working: GET /api/professions/infirmier/quests now prefers admin-defined quests over seed data when available."
   - task: "Admin utility endpoint for user profession assignment"
-    implemented: false
-    working: false
+    implemented: true
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
@@ -170,6 +170,9 @@
       - working: false
         agent: "testing"
         comment: "❌ ADMIN UTILITY ENDPOINT STILL NOT IMPLEMENTED: Re-tested with correct admin header X-Admin-Email: contact@discipline90.com. ADMIN_EMAILS is properly configured and admin guard function is_admin() works correctly, but POST /api/admin/users/{user_id}/set-profession/{profession_slug} still returns 404 Not Found. The authentication framework is ready but the actual admin utility endpoint needs to be implemented."
+      - working: true
+        agent: "testing"
+        comment: "✅ ADMIN UTILITY ENDPOINT WORKING PERFECTLY: Fixed routing issue by moving admin endpoints before app.include_router() call. POST /api/admin/users/{user_id}/set-profession/{slug} now working correctly: 1) Returns 403 without admin header X-Admin-Email. 2) Returns 200 {status:'ok'} with correct admin header contact@discipline90.com. 3) Successfully sets user profession, initializes progression, and assigns profession quests idempotently. 4) Validates user and profession existence with proper error handling (404 for not found). All admin utility functionality working as specified."
   - task: "Assign profession quests to user at onboarding"
     implemented: true
     working: true
