@@ -696,6 +696,359 @@ class WellnessAppTester:
         
         return self.log_test("Phase2 Full Progression Endpoint", True, f"All fields valid: niveau={progression_niveau}, xp={progression_xp}, tier_max={tier_max}")
 
+    def test_admin_professions_crud(self):
+        """Test Admin CRUD endpoints for professions with header-based admin check"""
+        print("\n🔐 Testing Admin Professions CRUD:")
+        
+        admin_headers = {
+            'Content-Type': 'application/json',
+            'X-Admin-Email': 'toi@discipline90.com'
+        }
+        
+        no_admin_headers = {
+            'Content-Type': 'application/json'
+        }
+        
+        # Test 1: List professions without admin header should return 403
+        success, response = self.run_test(
+            "Admin List Professions (No Header)",
+            "GET",
+            "admin/professions",
+            403,
+            headers=no_admin_headers
+        )
+        
+        # Test 2: List professions with admin header should return 200 array
+        success, response = self.run_test(
+            "Admin List Professions",
+            "GET", 
+            "admin/professions",
+            200,
+            headers=admin_headers
+        )
+        
+        if success and response:
+            is_array = isinstance(response, list)
+            if not is_array:
+                self.log_test("Admin Professions List Structure", False, "Response is not an array")
+            else:
+                self.log_test("Admin Professions List Structure", True, f"Returns array with {len(response)} professions")
+        
+        # Test 3: Create profession without admin header should return 403
+        test_profession = {
+            "slug": "test_prof",
+            "label": "Test Profession", 
+            "icon": "🧪",
+            "order_index": 99,
+            "active": True
+        }
+        
+        success, response = self.run_test(
+            "Admin Create Profession (No Header)",
+            "POST",
+            "admin/professions",
+            403,
+            data=test_profession,
+            headers=no_admin_headers
+        )
+        
+        # Test 4: Create profession with admin header should return 200 object
+        success, response = self.run_test(
+            "Admin Create Profession",
+            "POST",
+            "admin/professions", 
+            200,
+            data=test_profession,
+            headers=admin_headers
+        )
+        
+        if success and response:
+            created_slug = response.get('slug')
+            if created_slug != 'test_prof':
+                self.log_test("Admin Create Profession Response", False, f"Expected slug 'test_prof', got '{created_slug}'")
+            else:
+                self.log_test("Admin Create Profession Response", True, f"Created profession with slug: {created_slug}")
+        
+        # Test 5: Update profession without admin header should return 403
+        update_data = {"label": "Profession Test"}
+        
+        success, response = self.run_test(
+            "Admin Update Profession (No Header)",
+            "PUT",
+            "admin/professions/test_prof",
+            403,
+            data=update_data,
+            headers=no_admin_headers
+        )
+        
+        # Test 6: Update profession with admin header should return 200 object with changed label
+        success, response = self.run_test(
+            "Admin Update Profession",
+            "PUT",
+            "admin/professions/test_prof",
+            200,
+            data=update_data,
+            headers=admin_headers
+        )
+        
+        if success and response:
+            updated_label = response.get('label')
+            if updated_label != 'Profession Test':
+                self.log_test("Admin Update Profession Response", False, f"Expected label 'Profession Test', got '{updated_label}'")
+            else:
+                self.log_test("Admin Update Profession Response", True, f"Updated profession label to: {updated_label}")
+        
+        # Test 7: Delete profession without admin header should return 403
+        success, response = self.run_test(
+            "Admin Delete Profession (No Header)",
+            "DELETE",
+            "admin/professions/test_prof",
+            403,
+            headers=no_admin_headers
+        )
+        
+        # Test 8: Delete profession with admin header should return 200 {deleted:true}
+        success, response = self.run_test(
+            "Admin Delete Profession",
+            "DELETE",
+            "admin/professions/test_prof",
+            200,
+            headers=admin_headers
+        )
+        
+        if success and response:
+            deleted_status = response.get('deleted')
+            if deleted_status != True:
+                self.log_test("Admin Delete Profession Response", False, f"Expected deleted: true, got {deleted_status}")
+            else:
+                self.log_test("Admin Delete Profession Response", True, "Profession deleted successfully")
+
+    def test_admin_quests_crud(self):
+        """Test Admin CRUD endpoints for quests with header-based admin check"""
+        print("\n🎯 Testing Admin Quests CRUD:")
+        
+        admin_headers = {
+            'Content-Type': 'application/json',
+            'X-Admin-Email': 'toi@discipline90.com'
+        }
+        
+        no_admin_headers = {
+            'Content-Type': 'application/json'
+        }
+        
+        # Test 1: List quests without admin header should return 403
+        success, response = self.run_test(
+            "Admin List Quests (No Header)",
+            "GET",
+            "admin/quests",
+            403,
+            headers=no_admin_headers
+        )
+        
+        # Test 2: List quests with admin header should return 200 array (empty or existing)
+        success, response = self.run_test(
+            "Admin List Quests",
+            "GET",
+            "admin/quests", 
+            200,
+            headers=admin_headers
+        )
+        
+        if success and response:
+            is_array = isinstance(response, list)
+            if not is_array:
+                self.log_test("Admin Quests List Structure", False, "Response is not an array")
+            else:
+                self.log_test("Admin Quests List Structure", True, f"Returns array with {len(response)} quests")
+        
+        # Test 3: Create quest without admin header should return 403
+        test_quest = {
+            "profession_slug": "infirmier",
+            "title": "Test Admin Quest",
+            "description": "Quest via admin",
+            "level": 2,
+            "xp_reward": 12,
+            "is_enabled": True,
+            "order_index": 50
+        }
+        
+        success, response = self.run_test(
+            "Admin Create Quest (No Header)",
+            "POST",
+            "admin/quests",
+            403,
+            data=test_quest,
+            headers=no_admin_headers
+        )
+        
+        # Test 4: Create quest with admin header should return 200 object
+        success, response = self.run_test(
+            "Admin Create Quest",
+            "POST",
+            "admin/quests",
+            200,
+            data=test_quest,
+            headers=admin_headers
+        )
+        
+        created_quest_id = None
+        if success and response:
+            created_quest_id = response.get('id')
+            created_title = response.get('title')
+            if created_title != 'Test Admin Quest':
+                self.log_test("Admin Create Quest Response", False, f"Expected title 'Test Admin Quest', got '{created_title}'")
+            else:
+                self.log_test("Admin Create Quest Response", True, f"Created quest with title: {created_title}")
+        
+        # Test 5: Update quest without admin header should return 403 (need quest ID)
+        if created_quest_id:
+            update_data = {"title": "Updated Admin Quest"}
+            
+            success, response = self.run_test(
+                "Admin Update Quest (No Header)",
+                "PUT",
+                f"admin/quests/{created_quest_id}",
+                403,
+                data=update_data,
+                headers=no_admin_headers
+            )
+            
+            # Test 6: Update quest with admin header should return 200 with changed title
+            success, response = self.run_test(
+                "Admin Update Quest",
+                "PUT",
+                f"admin/quests/{created_quest_id}",
+                200,
+                data=update_data,
+                headers=admin_headers
+            )
+            
+            if success and response:
+                updated_title = response.get('title')
+                if updated_title != 'Updated Admin Quest':
+                    self.log_test("Admin Update Quest Response", False, f"Expected title 'Updated Admin Quest', got '{updated_title}'")
+                else:
+                    self.log_test("Admin Update Quest Response", True, f"Updated quest title to: {updated_title}")
+            
+            # Test 7: Delete quest without admin header should return 403
+            success, response = self.run_test(
+                "Admin Delete Quest (No Header)",
+                "DELETE",
+                f"admin/quests/{created_quest_id}",
+                403,
+                headers=no_admin_headers
+            )
+            
+            # Test 8: Delete quest with admin header should return 200 {deleted:true}
+            success, response = self.run_test(
+                "Admin Delete Quest",
+                "DELETE",
+                f"admin/quests/{created_quest_id}",
+                200,
+                headers=admin_headers
+            )
+            
+            if success and response:
+                deleted_status = response.get('deleted')
+                if deleted_status != True:
+                    self.log_test("Admin Delete Quest Response", False, f"Expected deleted: true, got {deleted_status}")
+                else:
+                    self.log_test("Admin Delete Quest Response", True, "Quest deleted successfully")
+
+    def test_admin_utility_endpoints(self):
+        """Test Admin utility endpoints"""
+        print("\n🛠️ Testing Admin Utility Endpoints:")
+        
+        admin_headers = {
+            'Content-Type': 'application/json',
+            'X-Admin-Email': 'toi@discipline90.com'
+        }
+        
+        no_admin_headers = {
+            'Content-Type': 'application/json'
+        }
+        
+        # First create a test user to use for the utility endpoint
+        test_email = f"admin_util_{int(time.time())}@example.com"
+        success, response = self.run_test(
+            "Create User for Admin Utility",
+            "POST",
+            "users",
+            200,
+            data={"email": test_email, "name": "Admin Util Test"}
+        )
+        
+        if not success or not response.get('id'):
+            self.log_test("Admin Utility Test Setup", False, "Failed to create test user")
+            return
+        
+        user_id = response['id']
+        
+        # Test 1: Set user profession without admin header should return 403
+        success, response = self.run_test(
+            "Admin Set User Profession (No Header)",
+            "POST",
+            f"admin/users/{user_id}/set-profession/infirmier",
+            403,
+            headers=no_admin_headers
+        )
+        
+        # Test 2: Set user profession with admin header should return 200 {status:"ok"}
+        success, response = self.run_test(
+            "Admin Set User Profession",
+            "POST",
+            f"admin/users/{user_id}/set-profession/infirmier",
+            200,
+            headers=admin_headers
+        )
+        
+        if success and response:
+            status = response.get('status')
+            if status != 'ok':
+                self.log_test("Admin Set Profession Response", False, f"Expected status: 'ok', got '{status}'")
+            else:
+                self.log_test("Admin Set Profession Response", True, f"Set user profession successfully: {status}")
+
+    def run_test(self, name, method, endpoint, expected_status, data=None, headers=None):
+        """Run a single API test - enhanced version with DELETE support"""
+        url = f"{self.api_url}/{endpoint}" if not endpoint.startswith('http') else endpoint
+        if headers is None:
+            headers = {'Content-Type': 'application/json'}
+
+        try:
+            if method == 'GET':
+                response = requests.get(url, headers=headers, timeout=10)
+            elif method == 'POST':
+                response = requests.post(url, json=data, headers=headers, timeout=10)
+            elif method == 'PUT':
+                response = requests.put(url, json=data, headers=headers, timeout=10)
+            elif method == 'DELETE':
+                response = requests.delete(url, headers=headers, timeout=10)
+
+            success = response.status_code == expected_status
+            details = f"Status: {response.status_code}"
+            
+            if success and response.content:
+                try:
+                    response_data = response.json()
+                    details += f" | Response keys: {list(response_data.keys()) if isinstance(response_data, dict) else 'Non-dict response'}"
+                except:
+                    details += " | Non-JSON response"
+            
+            if not success:
+                details += f" | Expected: {expected_status}"
+                if response.content:
+                    try:
+                        error_data = response.json()
+                        details += f" | Error: {error_data.get('detail', 'Unknown error')}"
+                    except:
+                        details += f" | Raw error: {response.text[:100]}"
+
+            return self.log_test(name, success, details), response.json() if success and response.content else {}
+
+        except Exception as e:
+            return self.log_test(name, False, f"Exception: {str(e)}"), {}
+
     def run_all_tests(self):
         """Run all backend tests"""
         print("🚀 Starting Wellness App Backend Tests")
@@ -711,6 +1064,12 @@ class WellnessAppTester:
         self.test_create_user()
         self.test_get_user_by_email()
         self.test_get_user_by_id()
+        
+        # Admin CRUD Tests (NEW - CURRENT FOCUS)
+        print("\n🔐 Admin CRUD Tests:")
+        self.test_admin_professions_crud()
+        self.test_admin_quests_crud()
+        self.test_admin_utility_endpoints()
         
         # Professions system tests (NEW - HIGH PRIORITY)
         print("\n🩺 Professions System Tests:")
