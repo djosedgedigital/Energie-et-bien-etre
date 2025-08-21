@@ -88,56 +88,11 @@ class HabitUpdate(BaseModel):
     stress_0_10: Optional[int] = None
     notes: Optional[str] = None
 
-class Quest(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    title: str
-    description: str
-    type: str  # daily, weekly, special
-    points_reward: int
-    badge_id: Optional[str] = None
-    branch: Optional[str] = None  # stress, sleep, hydration, strength, resilience
-    is_global: bool = True
-    is_active: bool = True
-
-class UserQuest(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    user_id: str
-    quest_id: str
-    date_assigned: datetime
-    status: str = "todo"  # todo, in_progress, done
-    completed_at: Optional[datetime] = None
-
-class Badge(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    code: str
-    label: str
-    description: str
-    icon: str
-
-class UserBadge(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    user_id: str
-    badge_id: str
-    earned_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-class Quote(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    text: str
-    author: Optional[str] = None
-
-class PaymentTransaction(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    session_id: str
-    user_email: str
-    amount: float
-    currency: str = "EUR"
-    status: str = "pending"
-    payment_status: str = "pending"
-    metadata: Optional[Dict] = {}
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
 class CheckoutRequest(BaseModel):
     origin_url: str
+
+class UserUpdateProfession(BaseModel):
+    profession_slug: str
 
 # Email service
 class BrevoEmailService:
