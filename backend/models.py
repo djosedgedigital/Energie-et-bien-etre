@@ -122,6 +122,19 @@ class ProfessionQuest(BaseModel):
     branch: Optional[str] = None
     is_active: bool = True
 
+class UserProfessionQuest(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    profession_slug: str
+    quest_id: str
+    title: str
+    description: Optional[str] = None
+    points_reward: int = 0
+    type: Optional[str] = None
+    status: str = "todo"  # todo, done
+    assigned_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    completed_at: Optional[datetime] = None
+
 # Données de seed pour les professions
 PROFESSIONS_SEED = [
     {
