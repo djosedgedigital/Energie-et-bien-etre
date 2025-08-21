@@ -79,7 +79,7 @@ const Admin = () => {
   const deleteProfession = async (slug) => {
     if (!window.confirm(`Supprimer ${slug} ?`)) return;
     try {
-      await axios.delete(`${API}/admin/professions/${slug}`, { headers });
+      await client.delete(`/professions/${slug}`);
       await loadAll();
     } catch (e) {
       alert("Erreur suppression métier");
