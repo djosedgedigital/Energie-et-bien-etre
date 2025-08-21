@@ -247,10 +247,7 @@
   run_ui: true
 
 ## test_plan:
-  current_focus:
-    - "Admin CRUD endpoints for professions"
-    - "Admin CRUD endpoints for quests"
-    - "Admin utility endpoint for user profession assignment"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
