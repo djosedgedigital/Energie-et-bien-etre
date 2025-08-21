@@ -696,45 +696,57 @@ async def get_user_by_email(email: str):
 @api_router.get("/dashboard/{user_id}")
 async def get_dashboard_data(user_id: str):
     """Get dashboard data for user"""
-    # Get user
-    user = await db.users.find_one({"id": user_id})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Get today's habit log
-    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    habit_log = await db.habit_logs.find_one({
-        "user_id": user_id,
-        "date": {"$gte": today}
-    })
-    
-    if not habit_log:
-        # Create empty habit log for today
-        habit_log = HabitLog(user_id=user_id, date=datetime.now(timezone.utc))
-        await db.habit_logs.insert_one(habit_log.dict())
-        habit_log = habit_log.dict()
-    
-    # Calculate energy
-    energy = calculate_energy_percentage(HabitLog(**habit_log), user.get("settings", {}))
-    
-    # Get daily quest
-    daily_quest = await get_daily_quest_for_user(user_id)
-    
-    # Get random quote
-    import random
-    quotes = await db.quotes.find({}).to_list(50)
-    quote = random.choice(quotes) if quotes else {"text": "Bonne journée !", "author": ""}
-    
-    return {
-        "user": user,
-        "energy_percentage": energy,
-        "habit_log": habit_log,
-        "daily_quest": daily_quest,
-        "quote": quote,
-        "level": user.get("level_number", 1),
-        "xp_total": user.get("xp_total", 0),
-        "xp_to_next_level": 150 - (user.get("xp_total", 0) % 150)
-    }
+    try:
+        # Get user
+        user = await db.users.find_one({"id": user_id})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        user = serialize_mongo_doc(user)
+        
+        # Get today's habit log
+        today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        habit_log = await db.habit_logs.find_one({
+            "user_id": user_id,
+            "date": {"$gte": today}
+        })
+        
+        if not habit_log:
+            # Create empty habit log for today
+            habit_log_data = HabitLog(user_id=user_id, date=datetime.now(timezone.utc))
+            await db.habit_logs.insert_one(habit_log_data.dict())
+            habit_log = habit_log_data.dict()
+        else:
+            habit_log = serialize_mongo_doc(habit_log)
+        
+        # Calculate energy
+        energy = calculate_energy_percentage(HabitLog(**habit_log), user.get("settings", {}))
+        
+        # Get daily quest
+        daily_quest = await get_daily_quest_for_user(user_id)
+        if daily_quest:
+            daily_quest = serialize_mongo_doc(daily_quest)
+        
+        # Get random quote
+        quotes = await db.quotes.find({}).to_list(50)
+        if quotes:
+            quote = serialize_mongo_doc(random.choice(quotes))
+        else:
+            quote = {"text": "Bonne journée !", "author": ""}
+        
+        return {
+            "user": user,
+            "energy_percentage": energy,
+            "habit_log": habit_log,
+            "daily_quest": daily_quest,
+            "quote": quote,
+            "level": user.get("level_number", 1),
+            "xp_total": user.get("xp_total", 0),
+            "xp_to_next_level": 150 - (user.get("xp_total", 0) % 150)
+        }
+    except Exception as e:
+        logger.error(f"Error getting dashboard data for user {user_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error loading dashboard data")
 
 # Habits endpoints
 @api_router.put("/habits/{user_id}")
