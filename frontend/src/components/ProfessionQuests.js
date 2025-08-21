@@ -53,8 +53,11 @@ const ProfessionQuests = ({ userId, professionSlug }) => {
       const res = await axios.post(`${API}/quests/${questId}/complete`, { user_id: userId });
       // Disable item by marking it as done locally
       setQuests((list) => list.map((it) => it.title === q.title ? { ...it, status: 'done' } : it));
-      // Optional: surface awarded XP
-      console.log(`+${res.data.awarded_xp} XP métier`);
+      if (res.data.awarded_xp > 0) {
+        toast({ title: "Succès 🎉", description: `+${res.data.awarded_xp} XP gagné` });
+      } else {
+        toast({ title: "Déjà faite", description: "Cette quête était déjà complétée" });
+      }
     } catch (e) {
       console.error('Error completing quest', e);
     } finally {
