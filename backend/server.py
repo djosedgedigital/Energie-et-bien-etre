@@ -73,33 +73,10 @@ template_daily_recap_id = os.environ.get('BREVO_TEMPLATE_DAILY_RECAP_ID')
 scheduler = AsyncIOScheduler()
 
 # Pydantic Models
-class User(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    email: EmailStr
-    name: Optional[str] = None
-    role: str = "user"
-    settings: Optional[Dict] = {}
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    has_paid: bool = False
-    xp_total: int = 0
-    level_number: int = 1
-    
 class UserCreate(BaseModel):
     email: EmailStr
     name: Optional[str] = None
-
-class HabitLog(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    user_id: str
-    date: datetime
-    water_ml: float = 0
-    sleep_h: float = 0
-    nutrition_score_0_100: int = 0
-    activity_min: float = 0
-    serenity_min: float = 0
-    mood_1_10: int = 5
-    stress_0_10: int = 5
-    notes: Optional[str] = None
+    profession_slug: Optional[str] = None
 
 class HabitUpdate(BaseModel):
     water_ml: Optional[float] = None
