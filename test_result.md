@@ -149,3 +149,5 @@
 ## agent_communication:
   - agent: "main"
     message: "Please test backend endpoints: GET /api/professions returns array with label, slug, icon; GET /api/professions/infirmier/progression (without user_id) returns structure with profession_label/icon and default progression_niveau/xp; and GET with ?user_id=<a seeded or created user> returns values (xp may be 0). Also test GET /api/professions/infirmier/quests returns recommended_quests from seed."
+  - agent: "testing"
+    message: "✅ BACKEND TESTING COMPLETE - All profession endpoints working perfectly! Tested all 4 requested endpoints: 1) GET /api/professions returns 15 professions with correct structure, 2) GET /api/professions/infirmier/progression (no user_id) returns default values (niveau=1, xp=0), 3) Created demo user and tested with user_id parameter - works correctly, 4) GET /api/professions/infirmier/quests returns 2 recommended quests from seed data. All endpoints respond with HTTP 200 and correct JSON structures. Backend is ready for frontend integration. Minor: quotes endpoint has ObjectId serialization issue but doesn't affect profession system."
