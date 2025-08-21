@@ -436,15 +436,18 @@ async def send_daily_recap_emails():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Start scheduler
-    scheduler.add_job(
-        func=send_daily_recap_emails,
-        trigger=CronTrigger(hour=8, minute=0, timezone='Europe/Paris'),
-        id='daily_recap_emails',
-        max_instances=1,
-        replace_existing=True
-    )
-    scheduler.start()
-    logger.info("Scheduler started")
+    if cron_enabled:
+        scheduler.add_job(
+            func=send_daily_recap_emails,
+            trigger=CronTrigger(hour=cron_hour, minute=cron_minute, timezone=os.environ.get('TIMEZONE', 'UTC')),
+            id='daily_recap_emails',
+            max_instances=1,
+            replace_existing=True
+        )
+        scheduler.start()
+        logger.info(f"Daily recap scheduler started (UTC {cron_hour:02d}:{cron_minute:02d})")
+    else:
+        logger.info("Daily recap scheduler disabled")
     
     # Seed initial data
     await seed_initial_data()
