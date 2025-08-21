@@ -86,7 +86,7 @@ const LandingPage = () => {
             <div className="relative">
               <img
                 alt="Énergie & Bien-être"
-                src="https://1drv.ms/i/c/c497d58e20822aa9/EfEg30xsqzRJlIfzXt2vrMIBwS4Mjt4y6Eh9N4yM7ueqUQ?e=AnhN6M"
+                src="https://onedrive.live.com/download?cid=C497D58E20822AA9&resid=C497D58E20822AA9!s4cdf20f1ab6c49349487f35eddafacc2"
                 className="h-12 w-auto rounded-md shadow-sm border border-slate-200 bg-white object-contain"
               />
             </div>
