@@ -93,8 +93,29 @@ const LandingPage = () => {
   );
 };
 
-// Dashboard, HabitsTracker, PaymentSuccess components (existing content preserved)
-// ... existing Dashboard and other components code remains unchanged ...
+// Dashboard Component (simplified for admin testing)
+const Dashboard = () => {
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
+        <p>Dashboard functionality will be implemented here.</p>
+      </div>
+    </div>
+  );
+};
+
+// PaymentSuccess Component (simplified for admin testing)
+const PaymentSuccess = () => {
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold mb-4">Payment Success</h1>
+        <p>Payment was successful!</p>
+      </div>
+    </div>
+  );
+};
 
 // Main App Component
 function App() {
