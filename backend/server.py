@@ -20,6 +20,10 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionResponse, CheckoutStatusResponse, CheckoutSessionRequest
 
+# Import des nouveaux modèles et services
+from models import User, HabitLog, Quest, UserQuest, Badge, UserBadge, Quote, PaymentTransaction, Profession, ProgressionMetier, UserProgression
+from profession_service import ProfessionService
+
 # Load environment variables
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
