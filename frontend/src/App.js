@@ -14,6 +14,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { Slider } from "./components/ui/slider";
 import { Separator } from "./components/ui/separator";
 
+// Import custom components
+import ProfessionQuests from "./components/ProfessionQuests";
+
 // Lucide icons
 import { 
   Heart, Droplets, Moon, Activity, Brain, Star, Trophy, 
