@@ -534,6 +534,21 @@ const Dashboard = () => {
               </CardContent>
             </Card>
 
+            {/* Profession Quests (Phase 2) */}
+            {user?.profession_slug && (
+              <Card className="overflow-hidden">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Target className="h-5 w-5 text-emerald-600 mr-2" />
+                    Quêtes recommandées — {user?.profession_label}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <ProfessionQuests userId={user?.id} professionSlug={user?.profession_slug} />
+                </CardContent>
+              </Card>
+            )}
+
             {/* Daily Quest */}
             {dashboardData.daily_quest && (
               <Card>
