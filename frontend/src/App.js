@@ -73,7 +73,7 @@ const LandingPage = () => {
           <div className="flex items-center gap-3">
             <img
               alt="Énergie & Bien-être"
-              src="/assets/logo-full.png"
+              src="/assets/logo-emergent-final.png"
               className="h-12 w-auto rounded-md shadow-sm border border-slate-200 bg-white object-contain"
             />
             <div>
@@ -135,7 +135,7 @@ const Dashboard = () => {
       <header className="bg-white border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img alt="Énergie & Bien-être" src="/assets/logo-full.png" className="h-12 w-auto rounded-md shadow-sm border border-slate-200 bg-white object-contain" />
+            <img alt="Énergie & Bien-être" src="/assets/logo-emergent-final.png" className="h-12 w-auto rounded-md shadow-sm border border-slate-200 bg-white object-contain" />
           </div>
         </div>
       </header>
