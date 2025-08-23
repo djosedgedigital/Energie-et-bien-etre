@@ -294,6 +294,7 @@ export default function Dashboard() {
       {/* Main content */}
       <main className="flex-1 p-4 lg:p-10 pt-16 lg:pt-10">
         <PaymentSuccessBanner />
+        <FreemiumBanner />
         
         <h1 className="text-2xl lg:text-3xl font-bold text-[var(--color-primary)] mb-6">{active}</h1>
 
@@ -309,19 +310,45 @@ export default function Dashboard() {
                   <p className="text-2xl lg:text-3xl font-bold text-[var(--color-secondary)]">
                     {dashboardStats.today_stats.quests_completed}/{dashboardStats.today_stats.total_quests}
                   </p>
+                  {!user?.has_paid_access && (
+                    <p className="text-xs text-orange-600 mt-1">Version gratuite: 2 max/jour</p>
+                  )}
                 </div>
                 <div className="bg-white p-4 lg:p-6 rounded-lg shadow">
                   <h3 className="text-base lg:text-lg font-semibold text-[var(--color-primary)]">Points gagnés</h3>
                   <p className="text-2xl lg:text-3xl font-bold text-[var(--color-secondary)]">
                     {dashboardStats.today_stats.total_points}
                   </p>
+                  {!user?.has_paid_access && (
+                    <p className="text-xs text-orange-600 mt-1">Limité en version gratuite</p>
+                  )}
                 </div>
                 <div className="bg-white p-4 lg:p-6 rounded-lg shadow">
                   <h3 className="text-base lg:text-lg font-semibold text-[var(--color-primary)]">Progression</h3>
                   <p className="text-2xl lg:text-3xl font-bold text-[var(--color-secondary)]">
                     {dashboardStats.today_stats.completion_percentage}%
                   </p>
+                  {!user?.has_paid_access && (
+                    <p className="text-xs text-orange-600 mt-1">Stats limitées</p>
+                  )}
                 </div>
+              </div>
+            )}
+            
+            {!user?.has_paid_access && (
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-6 text-center">
+                <h3 className="text-lg font-bold text-[var(--color-primary)] mb-2">
+                  🌟 Découvrez toutes les fonctionnalités !
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Quêtes illimitées • Statistiques avancées • Skill Tree • Bibliothèque complète • Ambiances sonores
+                </p>
+                <button 
+                  onClick={() => router.push('/pricing')}
+                  className="btn"
+                >
+                  Voir toutes les fonctionnalités
+                </button>
               </div>
             )}
           </div>
@@ -329,12 +356,22 @@ export default function Dashboard() {
 
         {active==="Quêtes" && (
           <div className="space-y-6">
+            <QuestLimitBanner />
+            
             <h2 className="text-lg lg:text-xl font-semibold text-[var(--color-secondary)]">Tes quêtes du jour</h2>
             <div className="grid gap-4">
-              {todayQuests.map((quest) => (
+              {todayQuests.map((quest, index) => (
                 <div key={quest.id} className="bg-white p-4 lg:p-6 rounded-lg shadow flex flex-col lg:flex-row justify-between lg:items-center">
                   <div className="mb-4 lg:mb-0">
-                    <h3 className="font-semibold text-[var(--color-primary)]">{quest.title}</h3>
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="font-semibold text-[var(--color-primary)]">{quest.title}</h3>
+                      {!user?.has_paid_access && index < 2 && (
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Gratuit</span>
+                      )}
+                      {!user?.has_paid_access && index >= 2 && (
+                        <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">Premium</span>
+                      )}
+                    </div>
                     <p className="text-gray-600 text-sm lg:text-base">{quest.description}</p>
                     <p className="text-sm text-[var(--color-secondary)]">
                       {quest.points_reward} points
@@ -358,9 +395,30 @@ export default function Dashboard() {
               ))}
             </div>
             
+            {!user?.has_paid_access && (
+              <div className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                <div className="text-4xl mb-4">🔒</div>
+                <h3 className="text-lg font-bold text-gray-700 mb-2">Plus de quêtes disponibles en Premium</h3>
+                <p className="text-gray-600 mb-4">
+                  Débloquez des quêtes personnalisées, des défis hebdomadaires et bien plus !
+                </p>
+                <button 
+                  onClick={() => router.push('/pricing')}
+                  className="btn"
+                >
+                  Passer Premium
+                </button>
+              </div>
+            )}
+            
             {dashboardStats && (
               <div className="bg-white rounded-xl shadow-md p-4 lg:p-6 mt-8">
-                <h3 className="text-base lg:text-lg font-bold text-[var(--color-primary)] mb-4">Progression hebdomadaire</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-base lg:text-lg font-bold text-[var(--color-primary)]">Progression hebdomadaire</h3>
+                  {!user?.has_paid_access && (
+                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">Aperçu limité</span>
+                  )}
+                </div>
                 <div className="h-64 lg:h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={dashboardStats.weekly_data}>
@@ -371,6 +429,13 @@ export default function Dashboard() {
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
+                {!user?.has_paid_access && (
+                  <div className="mt-4 p-3 bg-blue-50 rounded text-center">
+                    <p className="text-sm text-blue-700">
+                      🔒 Statistiques détaillées, objectifs personnalisés et historique complet disponibles en Premium
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
