@@ -132,7 +132,7 @@ export default function Dashboard() {
             </button>
           ))}
         </nav>
-        <div className="mt-auto text-sm text-gray-300">Discipline 90™ — 2025</div>
+        <div className="mt-auto text-sm text-gray-300">par Discipline-90 — 2025</div>
       </aside>
 
       {/* Mobile overlay */}
