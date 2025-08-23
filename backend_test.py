@@ -156,18 +156,30 @@ class HealthcareWellnessAPITester:
                 f"Status: {status}, Response: {data}"
             )
 
-    def test_get_today_quests_without_access(self):
-        """Test getting today's user quests without paid access (should fail)"""
+    def test_get_today_quests_freemium_access(self):
+        """Test getting today's user quests with freemium access (should work with limitations)"""
         if not self.token:
-            return self.log_test("Get Today Quests (No Access)", False, "No authentication token")
+            return self.log_test("Get Today Quests (Freemium)", False, "No authentication token")
         
-        success, status, data = self.make_request('GET', 'api/user-quests/today', None, 403)
+        success, status, data = self.make_request('GET', 'api/user-quests/today', None, 200)
         
-        return self.log_test(
-            "Get Today Quests (No Access)", 
-            success and "Paid access required" in str(data),
-            f"Status: {status}, Response: {data}"
-        )
+        # Should return limited quests (max 2 for freemium users)
+        if success and isinstance(data, list):
+            quest_count = len(data)
+            is_limited = quest_count <= 2
+            # Store quest IDs for completion test
+            self.quest_ids = [quest['id'] for quest in data if quest.get('id')]
+            return self.log_test(
+                "Get Today Quests (Freemium)", 
+                success and is_limited,
+                f"Status: {status}, Quest count: {quest_count} (limited to 2 for freemium), IDs: {self.quest_ids}"
+            )
+        else:
+            return self.log_test(
+                "Get Today Quests (Freemium)", 
+                False,
+                f"Status: {status}, Response: {data}"
+            )
 
     def test_complete_quest_without_access(self):
         """Test completing a quest without paid access (should fail)"""
