@@ -372,8 +372,8 @@ async def complete_quest(quest_id: str, current_user: User = Depends(get_current
 @api_router.get("/dashboard/stats")
 async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
     # Get last 7 days progress
-    end_date = datetime.utcnow().date()
-    start_date = end_date - timedelta(days=6)
+    end_date = datetime.utcnow().replace(hour=23, minute=59, second=59, microsecond=999999)
+    start_date = (end_date - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
     
     progress_data = await db.user_progress.find({
         "user_id": current_user.id,
