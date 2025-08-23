@@ -11,7 +11,7 @@ export default function Home() {
       <div className="mb-8 lg:mb-10">
         <Logo className="h-16 lg:h-20 mb-4" showFullName={true} />
         <div className="text-sm lg:text-base text-[var(--color-secondary)] font-medium">
-          Discipline 90™
+          par Discipline-90
         </div>
       </div>
 
@@ -48,7 +48,7 @@ export default function Home() {
       </section>
       
       <footer className="mt-16 lg:mt-20 text-gray-500 text-xs lg:text-sm">
-        Fabriqué pour les soignants — Discipline 90™
+        Fabriqué pour les soignants — par Discipline-90
       </footer>
     </main>
   )
