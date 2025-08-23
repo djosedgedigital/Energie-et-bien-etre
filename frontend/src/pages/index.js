@@ -7,7 +7,14 @@ export default function Home() {
 
   return (
     <main className="flex flex-col items-center justify-center min-h-screen px-4 lg:px-6 py-8 lg:py-12 bg-white text-center">
-      <Logo className="h-10 lg:h-12 mb-6" />
+      {/* Logo et nom complet */}
+      <div className="mb-8 lg:mb-10">
+        <Logo className="h-16 lg:h-20 mb-4" showFullName={true} />
+        <div className="text-sm lg:text-base text-[var(--color-secondary)] font-medium">
+          Discipline 90™
+        </div>
+      </div>
+
       <h1 className="text-2xl lg:text-4xl font-extrabold text-[var(--color-primary)] mb-4 px-2">
         Votre dose de récupération en 8 minutes
       </h1>
