@@ -402,8 +402,8 @@ async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
     total_quests_today = await db.user_quests.count_documents({
         "user_id": current_user.id,
         "created_at": {
-            "$gte": datetime.combine(today, datetime.min.time()),
-            "$lte": datetime.combine(today, datetime.max.time())
+            "$gte": today,
+            "$lte": today.replace(hour=23, minute=59, second=59, microsecond=999999)
         }
     })
     
