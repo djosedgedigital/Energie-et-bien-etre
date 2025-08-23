@@ -207,9 +207,222 @@ async def initialize_default_quests():
             }
         ]
         await db.quests.insert_many(default_quests)
+# Authentication routes
+@api_router.post("/auth/register", response_model=Token)
+async def register(user_data: UserCreate):
+    # Check if user already exists
+    existing_user = await db.users.find_one({"email": user_data.email})
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+    
+    # Create new user
+    hashed_password = get_password_hash(user_data.password)
+    user = User(
+        email=user_data.email,
+        full_name=user_data.full_name,
+        profession=user_data.profession,
+        hashed_password=hashed_password
+    )
+    
+    await db.users.insert_one(user.dict())
+    
+    # Create access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.id}, expires_delta=access_token_expires
+    )
+    
+    user_response = UserResponse(**user.dict())
+    return Token(access_token=access_token, token_type="bearer", user=user_response)
+
+@api_router.post("/auth/login", response_model=Token)
+async def login(user_credentials: UserLogin):
+    user = await db.users.find_one({"email": user_credentials.email})
+    if not user or not verify_password(user_credentials.password, user["hashed_password"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user["id"]}, expires_delta=access_token_expires
+    )
+    
+    user_response = UserResponse(**user)
+    return Token(access_token=access_token, token_type="bearer", user=user_response)
+
+@api_router.get("/auth/me", response_model=UserResponse)
+async def get_current_user_info(current_user: User = Depends(get_current_user)):
+    return UserResponse(**current_user.dict())
+
+# Quest routes
+@api_router.get("/quests", response_model=List[Quest])
+async def get_quests(current_user: User = Depends(get_current_user)):
+    quests = await db.quests.find().to_list(1000)
+    return [Quest(**quest) for quest in quests]
+
+@api_router.get("/user-quests/today")
+async def get_today_quests(current_user: User = Depends(get_current_user)):
+    today = datetime.utcnow().date()
+    start_of_day = datetime.combine(today, datetime.min.time())
+    end_of_day = datetime.combine(today, datetime.max.time())
+    
+    # Get user's quests for today
+    user_quests = await db.user_quests.find({
+        "user_id": current_user.id,
+        "created_at": {"$gte": start_of_day, "$lte": end_of_day}
+    }).to_list(1000)
+    
+    if not user_quests:
+        # Create today's quests
+        all_quests = await db.quests.find().to_list(1000)
+        today_quests = []
+        for quest in all_quests:
+            user_quest = UserQuest(
+                user_id=current_user.id,
+                quest_id=quest["id"]
+            )
+            today_quests.append(user_quest.dict())
+        
+        if today_quests:
+            await db.user_quests.insert_many(today_quests)
+            user_quests = today_quests
+    
+    # Get quest details
+    result = []
+    for user_quest in user_quests:
+        quest = await db.quests.find_one({"id": user_quest["quest_id"]})
+        if quest:
+            result.append({
+                "id": user_quest["id"],
+                "title": quest["title"],
+                "description": quest["description"],
+                "type": quest["type"],
+                "duration_minutes": quest["duration_minutes"],
+                "points": quest["points"],
+                "status": user_quest["status"],
+                "completed_at": user_quest.get("completed_at")
+            })
+    
+    return result
+
+@api_router.post("/user-quests/{quest_id}/complete")
+async def complete_quest(quest_id: str, current_user: User = Depends(get_current_user)):
+    # Find the user quest
+    user_quest = await db.user_quests.find_one({
+        "id": quest_id,
+        "user_id": current_user.id
+    })
+    
+    if not user_quest:
+        raise HTTPException(status_code=404, detail="Quest not found")
+    
+    if user_quest["status"] == "completed":
+        raise HTTPException(status_code=400, detail="Quest already completed")
+    
+    # Update quest status
+    await db.user_quests.update_one(
+        {"id": quest_id},
+        {
+            "$set": {
+                "status": "completed",
+                "completed_at": datetime.utcnow()
+            }
+        }
+    )
+    
+    # Update user progress
+    today = datetime.utcnow().date()
+    progress = await db.user_progress.find_one({
+        "user_id": current_user.id,
+        "date": today
+    })
+    
+    quest_info = await db.quests.find_one({"id": user_quest["quest_id"]})
+    points = quest_info["points"] if quest_info else 10
+    
+    if not progress:
+        new_progress = UserProgress(
+            user_id=current_user.id,
+            date=today,
+            quests_completed=1,
+            total_points=points,
+            streak_days=1
+        )
+        await db.user_progress.insert_one(new_progress.dict())
+    else:
+        await db.user_progress.update_one(
+            {"id": progress["id"]},
+            {
+                "$inc": {
+                    "quests_completed": 1,
+                    "total_points": points
+                }
+            }
+        )
+    
+    return {"message": "Quest completed successfully", "points_earned": points}
+
+# Dashboard routes
+@api_router.get("/dashboard/stats")
+async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
+    # Get last 7 days progress
+    end_date = datetime.utcnow().date()
+    start_date = end_date - timedelta(days=6)
+    
+    progress_data = await db.user_progress.find({
+        "user_id": current_user.id,
+        "date": {"$gte": start_date, "$lte": end_date}
+    }).to_list(1000)
+    
+    # Create weekly chart data
+    days = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
+    weekly_data = []
+    
+    for i in range(7):
+        current_date = start_date + timedelta(days=i)
+        day_progress = next((p for p in progress_data if p["date"] == current_date), None)
+        weekly_data.append({
+            "day": days[i],
+            "valeur": day_progress["quests_completed"] if day_progress else 0
+        })
+    
+    # Get today's stats
+    today = datetime.utcnow().date()
+    today_progress = await db.user_progress.find_one({
+        "user_id": current_user.id,
+        "date": today
+    })
+    
+    total_quests_today = await db.user_quests.count_documents({
+        "user_id": current_user.id,
+        "created_at": {
+            "$gte": datetime.combine(today, datetime.min.time()),
+            "$lte": datetime.combine(today, datetime.max.time())
+        }
+    })
+    
+    completed_today = today_progress["quests_completed"] if today_progress else 0
+    total_points = today_progress["total_points"] if today_progress else 0
+    
+    return {
+        "weekly_data": weekly_data,
+        "today_stats": {
+            "quests_completed": completed_today,
+            "total_quests": total_quests_today,
+            "total_points": total_points,
+            "completion_percentage": int((completed_today / total_quests_today * 100)) if total_quests_today > 0 else 0
+        }
+    }
+
 @api_router.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "Énergie & Bien-être™ API - Ready for healthcare workers!"}
 
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):
