@@ -697,14 +697,31 @@ async def get_today_quests(current_user: User = Depends(get_user_with_demo_check
         "date_assigned": {"$gte": start_of_day, "$lte": end_of_day}
     }).to_list(1000)
     
-    if not user_quests:
-        # Create today's quests
+    # Check if we need to create or expand quests
+    should_create_quests = not user_quests
+    should_expand_quests = (
+        user_quests and 
+        current_user.has_paid_access and 
+        hasattr(current_user, 'demo_expires_at') and  # User has demo access
+        len(user_quests) <= 2  # But only has freemium-limited quests
+    )
+    
+    if should_create_quests or should_expand_quests:
+        # Get all available daily quests
         all_quests = await db.quests.find({"is_active": True, "type": "daily"}).to_list(1000)
         
-        # Freemium limitation: only 2 quests for free users (unless demo is active)
+        # Freemium limitation: only 2 quests for free users (unless demo/premium is active)
         if not current_user.has_paid_access:
             all_quests = all_quests[:2]
         
+        if should_expand_quests:
+            # Remove existing limited quests and create full set
+            await db.user_quests.delete_many({
+                "user_id": current_user.id,
+                "date_assigned": {"$gte": start_of_day, "$lte": end_of_day}
+            })
+        
+        # Create today's quests
         today_quests = []
         for quest in all_quests:
             user_quest = UserQuest(
