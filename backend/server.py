@@ -290,7 +290,8 @@ async def get_user_with_demo_check(credentials: HTTPAuthorizationCredentials = D
     if demo_access:
         # Temporarily grant premium access for this request
         user.has_paid_access = True
-        user.demo_expires_at = demo_access["expires_at"]
+        # Set demo expiration as a dynamic attribute (not part of Pydantic model)
+        setattr(user, 'demo_expires_at', demo_access["expires_at"])
     
     return user
 def calculate_energy_score(habit_log: HabitLog, user_settings: Dict[str, Any]) -> int:
