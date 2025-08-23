@@ -369,7 +369,118 @@ async def initialize_default_data():
         ]
         await db.quotes.insert_many(default_quotes)
 
-# Authentication routes
+# Demo Premium routes
+@api_router.post("/demo/activate")
+async def activate_demo_premium(current_user: User = Depends(get_current_user)):
+    """Activate 10-minute demo premium access for current user"""
+    
+    # Check if user already has paid access
+    if current_user.has_paid_access:
+        raise HTTPException(
+            status_code=400,
+            detail="User already has premium access"
+        )
+    
+    # Check if user already has an active demo
+    existing_demo = await db.demo_access.find_one({
+        "user_id": current_user.id,
+        "is_active": True,
+        "expires_at": {"$gt": datetime.utcnow()}
+    })
+    
+    if existing_demo:
+        demo_access = DemoAccess(**existing_demo)
+        remaining_minutes = int((demo_access.expires_at - datetime.utcnow()).total_seconds() / 60)
+        return {
+            "message": f"Demo already active! {remaining_minutes} minutes remaining",
+            "demo_token": demo_access.demo_token,
+            "expires_at": demo_access.expires_at,
+            "demo_link": f"{os.environ.get('APP_BASE_URL', 'https://soignant-recharge.preview.emergentagent.com')}/dashboard?demo={demo_access.demo_token}"
+        }
+    
+    # Create new demo access
+    demo_token = generate_demo_token()
+    expires_at = datetime.utcnow() + timedelta(minutes=10)
+    
+    demo_access = DemoAccess(
+        user_id=current_user.id,
+        demo_token=demo_token,
+        expires_at=expires_at
+    )
+    
+    await db.demo_access.insert_one(demo_access.dict())
+    
+    return {
+        "message": "Demo Premium activated for 10 minutes!",
+        "demo_token": demo_token,
+        "expires_at": expires_at,
+        "demo_link": f"{os.environ.get('APP_BASE_URL', 'https://soignant-recharge.preview.emergentagent.com')}/dashboard?demo={demo_token}",
+        "remaining_minutes": 10
+    }
+
+@api_router.get("/demo/status")
+async def get_demo_status(current_user: User = Depends(get_current_user)):
+    """Get current demo status for user"""
+    
+    if current_user.has_paid_access:
+        return {
+            "has_demo": False,
+            "has_premium": True,
+            "message": "User has full premium access"
+        }
+    
+    # Check for active demo
+    demo_access = await db.demo_access.find_one({
+        "user_id": current_user.id,
+        "is_active": True,
+        "expires_at": {"$gt": datetime.utcnow()}
+    })
+    
+    if demo_access:
+        remaining_seconds = (demo_access["expires_at"] - datetime.utcnow()).total_seconds()
+        remaining_minutes = max(0, int(remaining_seconds / 60))
+        
+        return {
+            "has_demo": True,
+            "has_premium": False,
+            "demo_token": demo_access["demo_token"],
+            "expires_at": demo_access["expires_at"],
+            "remaining_minutes": remaining_minutes,
+            "remaining_seconds": int(remaining_seconds)
+        }
+    
+    return {
+        "has_demo": False,
+        "has_premium": False,
+        "message": "No active demo or premium access"
+    }
+
+@api_router.post("/demo/validate/{demo_token}")
+async def validate_demo_token(demo_token: str, current_user: User = Depends(get_current_user)):
+    """Validate and activate demo token for user"""
+    
+    demo_access = await is_demo_access_valid(demo_token)
+    if not demo_access:
+        raise HTTPException(
+            status_code=404,
+            detail="Demo token is invalid or expired"
+        )
+    
+    if demo_access.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Demo token belongs to different user"
+        )
+    
+    remaining_seconds = (demo_access.expires_at - datetime.utcnow()).total_seconds()
+    remaining_minutes = max(0, int(remaining_seconds / 60))
+    
+    return {
+        "message": "Demo access validated!",
+        "expires_at": demo_access.expires_at,
+        "remaining_minutes": remaining_minutes,
+        "remaining_seconds": int(remaining_seconds)
+    }
 @api_router.post("/auth/register", response_model=Token)
 async def register(user_data: UserCreate):
     # Check if user already exists
