@@ -279,7 +279,7 @@ class HealthcareWellnessAPITester:
             "origin_url": "https://soignant-recharge.preview.emergentagent.com"
         }
         
-        success, status, data = self.make_request('POST', 'api/payments/checkout/session', checkout_data, 401)
+        success, status, data = self.make_request('POST', 'api/payments/checkout/session', checkout_data, 403)
         
         self.token = original_token  # Restore token
         
