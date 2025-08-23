@@ -240,18 +240,27 @@ class HealthcareWellnessAPITester:
                 f"Status: {status}, Response: {data}"
             )
 
-    def test_dashboard_stats_without_access(self):
-        """Test getting dashboard statistics without paid access (should fail)"""
+    def test_dashboard_stats_freemium_access(self):
+        """Test getting dashboard statistics with freemium access (should work with limitations info)"""
         if not self.token:
-            return self.log_test("Dashboard Stats (No Access)", False, "No authentication token")
+            return self.log_test("Dashboard Stats (Freemium)", False, "No authentication token")
         
-        success, status, data = self.make_request('GET', 'api/dashboard/stats', None, 403)
+        success, status, data = self.make_request('GET', 'api/dashboard/stats', None, 200)
         
-        return self.log_test(
-            "Dashboard Stats (No Access)", 
-            success and "Paid access required" in str(data),
-            f"Status: {status}, Response: {data}"
-        )
+        if success and 'freemium_limits' in data and 'today_stats' in data:
+            freemium_info = data['freemium_limits']
+            has_limits = freemium_info.get('daily_quests_limit') == 2 and freemium_info.get('daily_completions_limit') == 2
+            return self.log_test(
+                "Dashboard Stats (Freemium)", 
+                has_limits,
+                f"Status: {status}, Daily limits: {freemium_info.get('daily_quests_limit')}/{freemium_info.get('daily_completions_limit')}, Premium: {data.get('is_premium', False)}"
+            )
+        else:
+            return self.log_test(
+                "Dashboard Stats (Freemium)", 
+                False,
+                f"Status: {status}, Response: {data}"
+            )
 
     def test_duplicate_registration(self):
         """Test duplicate email registration (should fail)"""
