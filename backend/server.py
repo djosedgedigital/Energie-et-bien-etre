@@ -96,6 +96,9 @@ class User(BaseModel):
         "theme_pref": "forest"
     })
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        extra = "allow"  # Allow extra fields like demo_expires_at
 
 class UserCreate(BaseModel):
     email: EmailStr
