@@ -623,6 +623,19 @@ class HealthcareWellnessAPITester:
         self.test_complete_quest_freemium_access()
         self.test_complete_quest_daily_limit()
         
+        # Demo Premium feature tests
+        print("\n🎯 Testing Demo Premium Features...")
+        self.test_demo_status_initial()
+        self.test_demo_activate()
+        self.test_demo_status_active()
+        self.test_demo_validate_token()
+        self.test_demo_validate_invalid_token()
+        self.test_demo_duplicate_activation()
+        self.test_quests_with_demo_access()
+        self.test_today_quests_with_demo_access()
+        self.test_dashboard_stats_with_demo_access()
+        self.test_complete_multiple_quests_with_demo()
+        
         # Payment system tests
         self.test_create_checkout_session()
         self.test_checkout_status()
