@@ -91,13 +91,18 @@ class EnergieBienEtreFrontendTester:
                 "Adresse email",
                 "profession",
                 "Mot de passe",
-                "S'inscrire"
+                ("S'inscrire", "S&#x27;inscrire")  # Check both versions
             ]
             
             missing_elements = []
             for element in required_elements:
-                if element not in content:
-                    missing_elements.append(element)
+                if isinstance(element, tuple):
+                    # Check both versions
+                    if element[0] not in content and element[1] not in content:
+                        missing_elements.append(element[0])
+                else:
+                    if element not in content:
+                        missing_elements.append(element)
             
             success = len(missing_elements) == 0
             details = f"Missing: {missing_elements}" if missing_elements else "All form elements found"
