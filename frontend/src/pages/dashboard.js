@@ -6,43 +6,6 @@ import axios from "axios";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
-// Function to get URL parameters
-function getUrlParameter(name) {
-  name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
-  const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
-  const results = regex.exec(location.search);
-  return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
-}
-
-// Function to poll payment status
-async function pollPaymentStatus(sessionId, attempts = 0) {
-  const maxAttempts = 5;
-  const pollInterval = 2000;
-
-  if (attempts >= maxAttempts) {
-    return { status: 'timeout' };
-  }
-
-  try {
-    const token = localStorage.getItem("token");
-    const response = await axios.get(`${BACKEND_URL}/api/payments/checkout/status/${sessionId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-
-    if (response.data.payment_status === 'paid') {
-      return { status: 'success' };
-    } else if (response.data.status === 'expired') {
-      return { status: 'expired' };
-    }
-
-    await new Promise(resolve => setTimeout(resolve, pollInterval));
-    return await pollPaymentStatus(sessionId, attempts + 1);
-  } catch (error) {
-    console.error('Error checking payment status:', error);
-    return { status: 'error' };
-  }
-}
-
 export default function Dashboard() {
   const [active, setActive] = useState("Accueil");
   const [user, setUser] = useState(null);
@@ -69,7 +32,7 @@ export default function Dashboard() {
       const parsedUser = JSON.parse(userData);
       setUser(parsedUser);
 
-      // Check if returning from Stripe payment
+      // Check for payment success
       const sessionId = getUrlParameter('session_id');
       const purchaseStatus = getUrlParameter('purchase');
       
@@ -103,12 +66,15 @@ export default function Dashboard() {
       setDashboardStats(statsResponse.data);
       
       // Check demo status
-      const demoResponse = await axios.get(`${BACKEND_URL}/api/demo/status`, { headers });
-      setDemoStatus(demoResponse.data);
-      
-      // Start countdown if demo is active
-      if (demoResponse.data.has_demo && demoResponse.data.remaining_seconds > 0) {
-        startDemoCountdown(demoResponse.data.remaining_seconds);
+      try {
+        const demoResponse = await axios.get(`${BACKEND_URL}/api/demo/status`, { headers });
+        setDemoStatus(demoResponse.data);
+        
+        if (demoResponse.data.has_demo && demoResponse.data.remaining_seconds > 0) {
+          startDemoCountdown(demoResponse.data.remaining_seconds);
+        }
+      } catch (demoError) {
+        console.log("Demo status check failed:", demoError);
       }
       
     } catch (error) {
@@ -118,6 +84,7 @@ export default function Dashboard() {
         localStorage.removeItem("user");
         router.push("/login");
       }
+      // NO MORE 403 BLOCKING - Just log the error and continue
     } finally {
       setLoading(false);
     }
@@ -129,7 +96,6 @@ export default function Dashboard() {
       setDemoCountdown(prev => {
         if (prev <= 1) {
           clearInterval(interval);
-          // Refresh data when demo expires
           const token = localStorage.getItem("token");
           if (token) fetchData(token);
           return 0;
@@ -195,6 +161,43 @@ export default function Dashboard() {
     }
   };
 
+  // Helper functions
+  function getUrlParameter(name) {
+    if (typeof window === 'undefined') return '';
+    name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+    const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+    const results = regex.exec(location.search);
+    return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+  }
+
+  async function pollPaymentStatus(sessionId, attempts = 0) {
+    const maxAttempts = 5;
+    const pollInterval = 2000;
+
+    if (attempts >= maxAttempts) {
+      return { status: 'timeout' };
+    }
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get(`${BACKEND_URL}/api/payments/checkout/status/${sessionId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.payment_status === 'paid') {
+        return { status: 'success' };
+      } else if (response.data.status === 'expired') {
+        return { status: 'expired' };
+      }
+
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      return await pollPaymentStatus(sessionId, attempts + 1);
+    } catch (error) {
+      console.error('Error checking payment status:', error);
+      return { status: 'error' };
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -203,6 +206,8 @@ export default function Dashboard() {
     );
   }
 
+  // IMPORTANT: NO BLOCKING CONDITIONS - ALWAYS SHOW DASHBOARD
+  
   // Payment success banner
   const PaymentSuccessBanner = () => {
     if (paymentStatus === 'checking') {
@@ -222,23 +227,18 @@ export default function Dashboard() {
       );
     }
 
-    if (paymentStatus === 'failed') {
-      return (
-        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 m-4 rounded">
-          <p className="font-medium">❌ Problème avec le paiement</p>
-          <p className="text-sm mt-1">Veuillez contacter le support si le problème persiste.</p>
-        </div>
-      );
-    }
-
     return null;
   };
 
   // Demo Premium banner
   const DemoBanner = () => {
-    if (user?.has_paid_access && !demoStatus?.has_demo) return null;
+    const isPremiumUser = user?.has_paid_access && !demoStatus?.has_demo;
+    const hasActiveDemo = demoStatus?.has_demo && demoCountdown > 0;
+    const canActivateDemo = !user?.has_paid_access && !demoStatus?.has_demo;
     
-    if (demoStatus?.has_demo && demoCountdown > 0) {
+    if (isPremiumUser) return null;
+    
+    if (hasActiveDemo) {
       return (
         <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-4 m-4 rounded-lg shadow-lg">
           <div className="flex flex-col lg:flex-row items-center justify-between">
@@ -256,7 +256,7 @@ export default function Dashboard() {
       );
     }
 
-    if (!user?.has_paid_access && !demoStatus?.has_demo) {
+    if (canActivateDemo) {
       return (
         <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white p-4 m-4 rounded-lg shadow-lg">
           <div className="flex flex-col lg:flex-row items-center justify-between">
@@ -294,6 +294,9 @@ export default function Dashboard() {
     if (level >= 40) return "🟡";
     return "🔴";
   };
+
+  const isFreemium = !user?.has_paid_access && !demoStatus?.has_demo;
+  const isDemoActive = demoStatus?.has_demo && demoCountdown > 0;
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -344,7 +347,7 @@ export default function Dashboard() {
         />
       )}
 
-      {/* Main content */}
+      {/* Main content - ALWAYS RENDERED */}
       <main className="flex-1 p-4 lg:p-10 pt-16 lg:pt-10">
         <PaymentSuccessBanner />
         <DemoBanner />
@@ -365,22 +368,8 @@ export default function Dashboard() {
                 {getEnergyEmoji(energyLevel)} Votre énergie aujourd'hui
               </h2>
               <div className="relative w-32 h-32 mx-auto mb-4">
-                <div className="w-32 h-32 rounded-full border-8 border-gray-200 relative">
-                  <div 
-                    className="absolute top-0 left-0 w-32 h-32 rounded-full border-8 border-transparent transition-all duration-1000"
-                    style={{
-                      borderTopColor: energyLevel >= 25 ? '#3FB28C' : 'transparent',
-                      borderRightColor: energyLevel >= 50 ? '#3FB28C' : 'transparent',
-                      borderBottomColor: energyLevel >= 75 ? '#3FB28C' : 'transparent',
-                      borderLeftColor: energyLevel >= 100 ? '#3FB28C' : 'transparent',
-                      transform: `rotate(${(energyLevel / 100) * 360}deg)`
-                    }}
-                  ></div>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className={`text-3xl font-bold ${getEnergyColor(energyLevel)}`}>
-                      {energyLevel}%
-                    </span>
-                  </div>
+                <div className={`text-3xl font-bold ${getEnergyColor(energyLevel)} flex items-center justify-center h-32`}>
+                  {energyLevel}%
                 </div>
               </div>
               <p className="text-gray-600">
@@ -389,6 +378,9 @@ export default function Dashboard() {
                  energyLevel >= 40 ? "Énergie modérée, prenez soin de vous 🌸" :
                  "Votre corps a besoin de récupération 🌿"}
               </p>
+              {isDemoActive && (
+                <p className="text-purple-600 font-medium mt-2">🔥 Mode Demo Premium Actif</p>
+              )}
             </div>
 
             {/* Statistiques du jour */}
@@ -404,10 +396,10 @@ export default function Dashboard() {
                     </div>
                     <div className="text-3xl">🎯</div>
                   </div>
-                  {!user?.has_paid_access && !demoStatus?.has_demo && (
+                  {isFreemium && (
                     <p className="text-xs text-orange-600 mt-1">Version gratuite: 2 max/jour</p>
                   )}
-                  {demoStatus?.has_demo && (
+                  {isDemoActive && (
                     <p className="text-xs text-purple-600 mt-1">🔥 Mode Demo Premium</p>
                   )}
                 </div>
@@ -422,8 +414,11 @@ export default function Dashboard() {
                     </div>
                     <div className="text-3xl">⭐</div>
                   </div>
-                  {!user?.has_paid_access && (
+                  {isFreemium && (
                     <p className="text-xs text-orange-600 mt-1">Limité en version gratuite</p>
+                  )}
+                  {isDemoActive && (
+                    <p className="text-xs text-purple-600 mt-1">🔥 Illimité en Demo</p>
                   )}
                 </div>
                 
@@ -437,45 +432,12 @@ export default function Dashboard() {
                     </div>
                     <div className="text-3xl">🏆</div>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                    <div 
-                      className="bg-[var(--color-secondary)] h-2 rounded-full transition-all duration-500" 
-                      style={{width: `${(dashboardStats.today_stats.total_points % 100)}%`}}
-                    ></div>
-                  </div>
                 </div>
               </div>
             )}
 
-            {/* Objectifs rapides */}
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-lg font-bold text-[var(--color-primary)] mb-4">🎯 Objectifs rapides</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <div className="text-2xl mb-2">💧</div>
-                  <p className="text-sm font-medium">Hydratation</p>
-                  <p className="text-xs text-gray-600">2L d'eau</p>
-                </div>
-                <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <div className="text-2xl mb-2">😴</div>
-                  <p className="text-sm font-medium">Sommeil</p>
-                  <p className="text-xs text-gray-600">8h de repos</p>
-                </div>
-                <div className="text-center p-4 bg-orange-50 rounded-lg">
-                  <div className="text-2xl mb-2">🚶</div>
-                  <p className="text-sm font-medium">Activité</p>
-                  <p className="text-xs text-gray-600">30 min/jour</p>
-                </div>
-                <div className="text-center p-4 bg-purple-50 rounded-lg">
-                  <div className="text-2xl mb-2">🧘</div>
-                  <p className="text-sm font-medium">Sérénité</p>
-                  <p className="text-xs text-gray-600">10 min/jour</p>
-                </div>
-              </div>
-            </div>
-
             {/* Encouragement freemium */}
-            {!user?.has_paid_access && (
+            {isFreemium && (
               <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-6 text-center">
                 <h3 className="text-lg font-bold text-[var(--color-primary)] mb-2">
                   🌟 Découvrez toutes les fonctionnalités !
@@ -496,24 +458,14 @@ export default function Dashboard() {
 
         {active==="Quêtes" && (
           <div className="space-y-6">
-            {/* Limite freemium */}
-            {!user?.has_paid_access && (
+            {isFreemium && (
               <div className="bg-orange-50 border-l-4 border-orange-400 text-orange-700 p-4 rounded">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium">
                       🎯 Version gratuite : {Math.max(0, 2 - todayQuests.filter(q => q.status === "done").length)} complétion{Math.max(0, 2 - todayQuests.filter(q => q.status === "done").length) !== 1 ? 's' : ''} restante{Math.max(0, 2 - todayQuests.filter(q => q.status === "done").length) !== 1 ? 's' : ''} aujourd'hui
                     </p>
-                    <p className="text-sm mt-1">Passez Premium pour des complétions illimitées !</p>
                   </div>
-                  {todayQuests.filter(q => q.status === "done").length >= 2 && (
-                    <button 
-                      onClick={() => router.push('/pricing')}
-                      className="ml-4 bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 text-sm"
-                    >
-                      Upgrader
-                    </button>
-                  )}
                 </div>
               </div>
             )}
@@ -526,11 +478,14 @@ export default function Dashboard() {
                   <div className="mb-4 lg:mb-0">
                     <div className="flex items-center gap-2 mb-2">
                       <h3 className="font-semibold text-[var(--color-primary)]">{quest.title}</h3>
-                      {!user?.has_paid_access && index < 2 && (
+                      {isFreemium && index < 2 && (
                         <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Gratuit</span>
                       )}
-                      {!user?.has_paid_access && index >= 2 && (
+                      {isFreemium && index >= 2 && (
                         <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">Premium</span>
+                      )}
+                      {isDemoActive && (
+                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">Demo</span>
                       )}
                     </div>
                     <p className="text-gray-600 text-sm lg:text-base">{quest.description}</p>
@@ -555,23 +510,6 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
-            
-            {/* Zone premium */}
-            {!user?.has_paid_access && (
-              <div className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                <div className="text-4xl mb-4">🔒</div>
-                <h3 className="text-lg font-bold text-gray-700 mb-2">Plus de quêtes disponibles en Premium</h3>
-                <p className="text-gray-600 mb-4">
-                  Débloquez des quêtes personnalisées, des défis hebdomadaires et bien plus !
-                </p>
-                <button 
-                  onClick={() => router.push('/pricing')}
-                  className="btn"
-                >
-                  Passer Premium
-                </button>
-              </div>
-            )}
           </div>
         )}
 
@@ -580,7 +518,7 @@ export default function Dashboard() {
             <div className="bg-white p-6 rounded-lg shadow">
               <h3 className="text-lg font-bold text-[var(--color-primary)] mb-4">🧘 Espace Mental</h3>
               
-              {!user?.has_paid_access ? (
+              {(isFreemium) ? (
                 <div className="text-center py-12">
                   <div className="text-6xl mb-4">🔒</div>
                   <h4 className="text-xl font-bold text-gray-700 mb-2">Fonctionnalité Premium</h4>
@@ -595,7 +533,14 @@ export default function Dashboard() {
                   </button>
                 </div>
               ) : (
-                <p className="text-gray-600">Journal, humeur et exercices de respiration disponibles ici.</p>
+                <div className="space-y-4">
+                  <p className="text-gray-600">Journal, humeur et exercices de respiration disponibles ici.</p>
+                  {isDemoActive && (
+                    <div className="bg-purple-50 p-4 rounded-lg">
+                      <p className="text-purple-700 font-medium">🔥 Mode Demo Actif - Toutes les fonctionnalités débloquées !</p>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -606,7 +551,7 @@ export default function Dashboard() {
             <div className="bg-white p-6 rounded-lg shadow">
               <h3 className="text-lg font-bold text-[var(--color-primary)] mb-4">📚 Bibliothèque Bien-être</h3>
               
-              {!user?.has_paid_access ? (
+              {(isFreemium) ? (
                 <div className="text-center py-12">
                   <div className="text-6xl mb-4">🔒</div>
                   <h4 className="text-xl font-bold text-gray-700 mb-2">Fonctionnalité Premium</h4>
@@ -621,7 +566,14 @@ export default function Dashboard() {
                   </button>
                 </div>
               ) : (
-                <p className="text-gray-600">Bibliothèque complète disponible pour les membres Premium.</p>
+                <div className="space-y-4">
+                  <p className="text-gray-600">Bibliothèque complète disponible pour les membres Premium.</p>
+                  {isDemoActive && (
+                    <div className="bg-purple-50 p-4 rounded-lg">
+                      <p className="text-purple-700 font-medium">🔥 Mode Demo Actif - Bibliothèque complète débloquée !</p>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -647,6 +599,8 @@ export default function Dashboard() {
                 <p className="text-gray-700">
                   {user.has_paid_access ? (
                     <span className="text-green-600 font-medium">✅ Accès Premium</span>
+                  ) : isDemoActive ? (
+                    <span className="text-purple-600 font-medium">🔥 Demo Premium Actif</span>
                   ) : (
                     <span className="text-orange-600 font-medium">⭐ Version Gratuite</span>
                   )}
@@ -657,7 +611,7 @@ export default function Dashboard() {
                 <p className="text-gray-700">{new Date(user.created_at).toLocaleDateString('fr-FR')}</p>
               </div>
               
-              {!user.has_paid_access && (
+              {isFreemium && (
                 <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg text-center">
                   <h4 className="font-bold text-[var(--color-primary)] mb-2">🚀 Passez Premium !</h4>
                   <p className="text-sm text-gray-600 mb-3">
