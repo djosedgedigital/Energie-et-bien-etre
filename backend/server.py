@@ -386,14 +386,14 @@ async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
     
     for i in range(7):
         current_date = start_date + timedelta(days=i)
-        day_progress = next((p for p in progress_data if p["date"] == current_date), None)
+        day_progress = next((p for p in progress_data if p["date"].date() == current_date.date()), None)
         weekly_data.append({
             "day": days[i],
             "valeur": day_progress["quests_completed"] if day_progress else 0
         })
     
     # Get today's stats
-    today = datetime.utcnow().date()
+    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     today_progress = await db.user_progress.find_one({
         "user_id": current_user.id,
         "date": today
