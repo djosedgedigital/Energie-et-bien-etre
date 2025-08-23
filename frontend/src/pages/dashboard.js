@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 import Logo from "@/components/Logo";
 import axios from "axios";
 
@@ -17,7 +17,7 @@ function getUrlParameter(name) {
 // Function to poll payment status
 async function pollPaymentStatus(sessionId, attempts = 0) {
   const maxAttempts = 5;
-  const pollInterval = 2000; // 2 seconds
+  const pollInterval = 2000;
 
   if (attempts >= maxAttempts) {
     return { status: 'timeout' };
@@ -35,7 +35,6 @@ async function pollPaymentStatus(sessionId, attempts = 0) {
       return { status: 'expired' };
     }
 
-    // If payment is still pending, continue polling
     await new Promise(resolve => setTimeout(resolve, pollInterval));
     return await pollPaymentStatus(sessionId, attempts + 1);
   } catch (error) {
@@ -52,6 +51,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState(null);
+  const [currentQuote, setCurrentQuote] = useState("Prendre soin des autres commence par prendre soin de soi.");
   const router = useRouter();
 
   useEffect(() => {
@@ -76,11 +76,9 @@ export default function Dashboard() {
         pollPaymentStatus(sessionId).then(result => {
           if (result.status === 'success') {
             setPaymentStatus('success');
-            // Update user data to reflect paid access
             const updatedUser = { ...parsedUser, has_paid_access: true };
             localStorage.setItem("user", JSON.stringify(updatedUser));
             setUser(updatedUser);
-            // Clean URL
             window.history.replaceState({}, document.title, "/dashboard");
           } else {
             setPaymentStatus('failed');
@@ -96,11 +94,9 @@ export default function Dashboard() {
     try {
       const headers = { Authorization: `Bearer ${token}` };
       
-      // Fetch today's quests
       const questsResponse = await axios.get(`${BACKEND_URL}/api/user-quests/today`, { headers });
       setTodayQuests(questsResponse.data);
       
-      // Fetch dashboard stats
       const statsResponse = await axios.get(`${BACKEND_URL}/api/dashboard/stats`, { headers });
       setDashboardStats(statsResponse.data);
       
@@ -108,7 +104,7 @@ export default function Dashboard() {
       console.error("Error fetching data:", error);
       if (error.response?.status === 401) {
         localStorage.removeItem("token");
-        localStorage.removeUser("user");
+        localStorage.removeItem("user");
         router.push("/login");
       }
     } finally {
@@ -122,11 +118,12 @@ export default function Dashboard() {
       const headers = { Authorization: `Bearer ${token}` };
       
       await axios.post(`${BACKEND_URL}/api/user-quests/${questId}/complete`, {}, { headers });
-      
-      // Refresh data
       fetchData(token);
     } catch (error) {
       console.error("Error completing quest:", error);
+      if (error.response?.status === 403) {
+        alert("Limite quotidienne atteinte ! Passez Premium pour un accès illimité.");
+      }
     }
   };
 
@@ -143,7 +140,7 @@ export default function Dashboard() {
       handleLogout();
     } else {
       setActive(item);
-      setSidebarOpen(false); // Close mobile menu after selection
+      setSidebarOpen(false);
     }
   };
 
@@ -186,7 +183,7 @@ export default function Dashboard() {
     return null;
   };
 
-  // Freemium upgrade banner component
+  // Freemium upgrade banner
   const FreemiumBanner = () => {
     if (user?.has_paid_access) return null;
     
@@ -210,35 +207,19 @@ export default function Dashboard() {
     );
   };
 
-  // Quest completion limit banner
-  const QuestLimitBanner = () => {
-    if (user?.has_paid_access) return null;
-    
-    const completedToday = todayQuests.filter(q => q.status === "done").length;
-    const remainingCompletions = Math.max(0, 2 - completedToday);
-    
-    return (
-      <div className="bg-orange-50 border-l-4 border-orange-400 text-orange-700 p-4 mb-4 rounded">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-medium">
-              🎯 Version gratuite : {remainingCompletions} complétion{remainingCompletions !== 1 ? 's' : ''} restante{remainingCompletions !== 1 ? 's' : ''} aujourd'hui
-            </p>
-            <p className="text-sm mt-1">
-              Passez Premium pour des complétions illimitées et plus de quêtes !
-            </p>
-          </div>
-          {remainingCompletions === 0 && (
-            <button 
-              onClick={() => router.push('/pricing')}
-              className="ml-4 bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 text-sm"
-            >
-              Upgrader
-            </button>
-          )}
-        </div>
-      </div>
-    );
+  const energyLevel = dashboardStats?.today_stats?.completion_percentage || 0;
+  const getEnergyColor = (level) => {
+    if (level >= 80) return "text-green-500";
+    if (level >= 60) return "text-yellow-500";
+    if (level >= 40) return "text-orange-500";
+    return "text-red-500";
+  };
+
+  const getEnergyEmoji = (level) => {
+    if (level >= 80) return "⚡";
+    if (level >= 60) return "🔋";
+    if (level >= 40) return "🟡";
+    return "🔴";
   };
 
   return (
@@ -258,7 +239,6 @@ export default function Dashboard() {
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       } lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-40 w-64 bg-[var(--color-primary)] text-white flex flex-col p-6 transition-transform duration-300 ease-in-out`}>
         
-        {/* Close button for mobile */}
         <button
           onClick={() => setSidebarOpen(false)}
           className="lg:hidden absolute top-4 right-4 text-white"
@@ -273,7 +253,7 @@ export default function Dashboard() {
           <span className="font-bold text-lg">Énergie & Bien-être™</span>
         </div>
         <nav className="flex flex-col space-y-4">
-          {["Accueil","Quêtes","Profil","Déconnexion"].map(item=>(
+          {["Accueil","Quêtes","Mental","Bibliothèque","Profil","Déconnexion"].map(item=>(
             <button key={item} onClick={()=>handleNavigation(item)}
               className={`text-left px-3 py-2 rounded-md transition ${active===item?"bg-[var(--color-secondary)] text-white font-semibold":"hover:bg-[var(--color-secondary)]/70"}`}>
               {item}
@@ -299,49 +279,133 @@ export default function Dashboard() {
         <h1 className="text-2xl lg:text-3xl font-bold text-[var(--color-primary)] mb-6">{active}</h1>
 
         {active==="Accueil" && (
-          <div>
-            <p className="text-gray-700 text-base lg:text-lg mb-6">
-              Bienvenue {user?.full_name} — retrouve ton énergie en un coup d'œil ⚡
-            </p>
+          <div className="space-y-6">
+            {/* Citation du jour */}
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-6 text-center">
+              <h3 className="text-lg font-bold text-[var(--color-primary)] mb-2">💭 Citation du jour</h3>
+              <p className="text-gray-700 italic">"{currentQuote}"</p>
+            </div>
+
+            {/* Jauge d'énergie principale */}
+            <div className="bg-white p-6 rounded-lg shadow-lg text-center">
+              <h2 className="text-xl font-bold text-[var(--color-primary)] mb-4">
+                {getEnergyEmoji(energyLevel)} Votre énergie aujourd'hui
+              </h2>
+              <div className="relative w-32 h-32 mx-auto mb-4">
+                <div className="w-32 h-32 rounded-full border-8 border-gray-200 relative">
+                  <div 
+                    className="absolute top-0 left-0 w-32 h-32 rounded-full border-8 border-transparent transition-all duration-1000"
+                    style={{
+                      borderTopColor: energyLevel >= 25 ? '#3FB28C' : 'transparent',
+                      borderRightColor: energyLevel >= 50 ? '#3FB28C' : 'transparent',
+                      borderBottomColor: energyLevel >= 75 ? '#3FB28C' : 'transparent',
+                      borderLeftColor: energyLevel >= 100 ? '#3FB28C' : 'transparent',
+                      transform: `rotate(${(energyLevel / 100) * 360}deg)`
+                    }}
+                  ></div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className={`text-3xl font-bold ${getEnergyColor(energyLevel)}`}>
+                      {energyLevel}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-gray-600">
+                {energyLevel >= 80 ? "Excellente énergie ! Vous êtes au top 🌟" :
+                 energyLevel >= 60 ? "Bonne énergie, continuez comme ça ! 💪" :
+                 energyLevel >= 40 ? "Énergie modérée, prenez soin de vous 🌸" :
+                 "Votre corps a besoin de récupération 🌿"}
+              </p>
+            </div>
+
+            {/* Statistiques du jour */}
             {dashboardStats && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
                 <div className="bg-white p-4 lg:p-6 rounded-lg shadow">
-                  <h3 className="text-base lg:text-lg font-semibold text-[var(--color-primary)]">Quêtes du jour</h3>
-                  <p className="text-2xl lg:text-3xl font-bold text-[var(--color-secondary)]">
-                    {dashboardStats.today_stats.quests_completed}/{dashboardStats.today_stats.total_quests}
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base lg:text-lg font-semibold text-[var(--color-primary)]">Quêtes du jour</h3>
+                      <p className="text-2xl lg:text-3xl font-bold text-[var(--color-secondary)]">
+                        {dashboardStats.today_stats.quests_completed}/{dashboardStats.today_stats.total_quests}
+                      </p>
+                    </div>
+                    <div className="text-3xl">🎯</div>
+                  </div>
                   {!user?.has_paid_access && (
                     <p className="text-xs text-orange-600 mt-1">Version gratuite: 2 max/jour</p>
                   )}
                 </div>
+                
                 <div className="bg-white p-4 lg:p-6 rounded-lg shadow">
-                  <h3 className="text-base lg:text-lg font-semibold text-[var(--color-primary)]">Points gagnés</h3>
-                  <p className="text-2xl lg:text-3xl font-bold text-[var(--color-secondary)]">
-                    {dashboardStats.today_stats.total_points}
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base lg:text-lg font-semibold text-[var(--color-primary)]">Points XP</h3>
+                      <p className="text-2xl lg:text-3xl font-bold text-[var(--color-secondary)]">
+                        {dashboardStats.today_stats.total_points}
+                      </p>
+                    </div>
+                    <div className="text-3xl">⭐</div>
+                  </div>
                   {!user?.has_paid_access && (
                     <p className="text-xs text-orange-600 mt-1">Limité en version gratuite</p>
                   )}
                 </div>
+                
                 <div className="bg-white p-4 lg:p-6 rounded-lg shadow">
-                  <h3 className="text-base lg:text-lg font-semibold text-[var(--color-primary)]">Progression</h3>
-                  <p className="text-2xl lg:text-3xl font-bold text-[var(--color-secondary)]">
-                    {dashboardStats.today_stats.completion_percentage}%
-                  </p>
-                  {!user?.has_paid_access && (
-                    <p className="text-xs text-orange-600 mt-1">Stats limitées</p>
-                  )}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base lg:text-lg font-semibold text-[var(--color-primary)]">Niveau</h3>
+                      <p className="text-2xl lg:text-3xl font-bold text-[var(--color-secondary)]">
+                        {Math.floor(dashboardStats.today_stats.total_points / 100) + 1}
+                      </p>
+                    </div>
+                    <div className="text-3xl">🏆</div>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                    <div 
+                      className="bg-[var(--color-secondary)] h-2 rounded-full transition-all duration-500" 
+                      style={{width: `${(dashboardStats.today_stats.total_points % 100)}%`}}
+                    ></div>
+                  </div>
                 </div>
               </div>
             )}
-            
+
+            {/* Objectifs rapides */}
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h3 className="text-lg font-bold text-[var(--color-primary)] mb-4">🎯 Objectifs rapides</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <div className="text-2xl mb-2">💧</div>
+                  <p className="text-sm font-medium">Hydratation</p>
+                  <p className="text-xs text-gray-600">2L d'eau</p>
+                </div>
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <div className="text-2xl mb-2">😴</div>
+                  <p className="text-sm font-medium">Sommeil</p>
+                  <p className="text-xs text-gray-600">8h de repos</p>
+                </div>
+                <div className="text-center p-4 bg-orange-50 rounded-lg">
+                  <div className="text-2xl mb-2">🚶</div>
+                  <p className="text-sm font-medium">Activité</p>
+                  <p className="text-xs text-gray-600">30 min/jour</p>
+                </div>
+                <div className="text-center p-4 bg-purple-50 rounded-lg">
+                  <div className="text-2xl mb-2">🧘</div>
+                  <p className="text-sm font-medium">Sérénité</p>
+                  <p className="text-xs text-gray-600">10 min/jour</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Encouragement freemium */}
             {!user?.has_paid_access && (
               <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-6 text-center">
                 <h3 className="text-lg font-bold text-[var(--color-primary)] mb-2">
                   🌟 Découvrez toutes les fonctionnalités !
                 </h3>
                 <p className="text-gray-600 mb-4">
-                  Quêtes illimitées • Statistiques avancées • Skill Tree • Bibliothèque complète • Ambiances sonores
+                  Quêtes illimitées • Skill Tree • Journal personnel • Ambiances sonores • Bibliothèque complète
                 </p>
                 <button 
                   onClick={() => router.push('/pricing')}
@@ -356,9 +420,30 @@ export default function Dashboard() {
 
         {active==="Quêtes" && (
           <div className="space-y-6">
-            <QuestLimitBanner />
+            {/* Limite freemium */}
+            {!user?.has_paid_access && (
+              <div className="bg-orange-50 border-l-4 border-orange-400 text-orange-700 p-4 rounded">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">
+                      🎯 Version gratuite : {Math.max(0, 2 - todayQuests.filter(q => q.status === "done").length)} complétion{Math.max(0, 2 - todayQuests.filter(q => q.status === "done").length) !== 1 ? 's' : ''} restante{Math.max(0, 2 - todayQuests.filter(q => q.status === "done").length) !== 1 ? 's' : ''} aujourd'hui
+                    </p>
+                    <p className="text-sm mt-1">Passez Premium pour des complétions illimitées !</p>
+                  </div>
+                  {todayQuests.filter(q => q.status === "done").length >= 2 && (
+                    <button 
+                      onClick={() => router.push('/pricing')}
+                      className="ml-4 bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 text-sm"
+                    >
+                      Upgrader
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
             
             <h2 className="text-lg lg:text-xl font-semibold text-[var(--color-secondary)]">Tes quêtes du jour</h2>
+            
             <div className="grid gap-4">
               {todayQuests.map((quest, index) => (
                 <div key={quest.id} className="bg-white p-4 lg:p-6 rounded-lg shadow flex flex-col lg:flex-row justify-between lg:items-center">
@@ -374,7 +459,7 @@ export default function Dashboard() {
                     </div>
                     <p className="text-gray-600 text-sm lg:text-base">{quest.description}</p>
                     <p className="text-sm text-[var(--color-secondary)]">
-                      {quest.points_reward} points
+                      {quest.points_reward} points XP
                     </p>
                   </div>
                   <div className="flex-shrink-0">
@@ -395,6 +480,7 @@ export default function Dashboard() {
               ))}
             </div>
             
+            {/* Zone premium */}
             {!user?.has_paid_access && (
               <div className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
                 <div className="text-4xl mb-4">🔒</div>
@@ -410,34 +496,58 @@ export default function Dashboard() {
                 </button>
               </div>
             )}
-            
-            {dashboardStats && (
-              <div className="bg-white rounded-xl shadow-md p-4 lg:p-6 mt-8">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-base lg:text-lg font-bold text-[var(--color-primary)]">Progression hebdomadaire</h3>
-                  {!user?.has_paid_access && (
-                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">Aperçu limité</span>
-                  )}
+          </div>
+        )}
+
+        {active==="Mental" && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h3 className="text-lg font-bold text-[var(--color-primary)] mb-4">🧘 Espace Mental</h3>
+              
+              {!user?.has_paid_access ? (
+                <div className="text-center py-12">
+                  <div className="text-6xl mb-4">🔒</div>
+                  <h4 className="text-xl font-bold text-gray-700 mb-2">Fonctionnalité Premium</h4>
+                  <p className="text-gray-600 mb-6">
+                    Journal personnel, suivi de l'humeur, exercices de respiration guidée
+                  </p>
+                  <button 
+                    onClick={() => router.push('/pricing')}
+                    className="btn"
+                  >
+                    Débloquer l'Espace Mental
+                  </button>
                 </div>
-                <div className="h-64 lg:h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={dashboardStats.weekly_data}>
-                      <XAxis dataKey="day" className="text-xs lg:text-sm" />
-                      <YAxis className="text-xs lg:text-sm" />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="valeur" stroke="#3FB28C" strokeWidth={2} />
-                    </LineChart>
-                  </ResponsiveContainer>
+              ) : (
+                <p className="text-gray-600">Journal, humeur et exercices de respiration disponibles ici.</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {active==="Bibliothèque" && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h3 className="text-lg font-bold text-[var(--color-primary)] mb-4">📚 Bibliothèque Bien-être</h3>
+              
+              {!user?.has_paid_access ? (
+                <div className="text-center py-12">
+                  <div className="text-6xl mb-4">🔒</div>
+                  <h4 className="text-xl font-bold text-gray-700 mb-2">Fonctionnalité Premium</h4>
+                  <p className="text-gray-600 mb-6">
+                    Recettes express, étirements guidés, playlists de relaxation, fiches 5-min bien-être
+                  </p>
+                  <button 
+                    onClick={() => router.push('/pricing')}
+                    className="btn"
+                  >
+                    Accéder à la Bibliothèque
+                  </button>
                 </div>
-                {!user?.has_paid_access && (
-                  <div className="mt-4 p-3 bg-blue-50 rounded text-center">
-                    <p className="text-sm text-blue-700">
-                      🔒 Statistiques détaillées, objectifs personnalisés et historique complet disponibles en Premium
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+              ) : (
+                <p className="text-gray-600">Bibliothèque complète disponible pour les membres Premium.</p>
+              )}
+            </div>
           </div>
         )}
 
@@ -462,7 +572,7 @@ export default function Dashboard() {
                   {user.has_paid_access ? (
                     <span className="text-green-600 font-medium">✅ Accès Premium</span>
                   ) : (
-                    <span className="text-orange-600 font-medium">⏳ Accès Limité</span>
+                    <span className="text-orange-600 font-medium">⭐ Version Gratuite</span>
                   )}
                 </p>
               </div>
@@ -470,6 +580,21 @@ export default function Dashboard() {
                 <label className="font-semibold text-[var(--color-primary)]">Membre depuis :</label>
                 <p className="text-gray-700">{new Date(user.created_at).toLocaleDateString('fr-FR')}</p>
               </div>
+              
+              {!user.has_paid_access && (
+                <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg text-center">
+                  <h4 className="font-bold text-[var(--color-primary)] mb-2">🚀 Passez Premium !</h4>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Débloquez toutes les fonctionnalités pour seulement 39€
+                  </p>
+                  <button 
+                    onClick={() => router.push('/pricing')}
+                    className="btn"
+                  >
+                    Upgrade maintenant
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
