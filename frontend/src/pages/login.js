@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import axios from "axios";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 export default function Login() {
   const router = useRouter();
