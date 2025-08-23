@@ -382,6 +382,227 @@ class HealthcareWellnessAPITester:
             f"Status: {status}, Response: {data}"
         )
 
+    # Demo Premium Tests
+    def test_demo_status_initial(self):
+        """Test initial demo status (should be no demo)"""
+        if not self.token:
+            return self.log_test("Demo Status (Initial)", False, "No authentication token")
+        
+        success, status, data = self.make_request('GET', 'api/demo/status', None, 200)
+        
+        if success and 'has_demo' in data and 'has_premium' in data:
+            no_demo = not data['has_demo'] and not data['has_premium']
+            return self.log_test(
+                "Demo Status (Initial)", 
+                no_demo,
+                f"Status: {status}, Has Demo: {data['has_demo']}, Has Premium: {data['has_premium']}"
+            )
+        else:
+            return self.log_test(
+                "Demo Status (Initial)", 
+                False,
+                f"Status: {status}, Response: {data}"
+            )
+
+    def test_demo_activate(self):
+        """Test demo activation (should create 10-minute demo access)"""
+        if not self.token:
+            return self.log_test("Demo Activate", False, "No authentication token")
+        
+        success, status, data = self.make_request('POST', 'api/demo/activate', {}, 200)
+        
+        if success and 'demo_token' in data and 'expires_at' in data:
+            self.demo_token = data['demo_token']
+            self.demo_expires_at = data['expires_at']
+            remaining_minutes = data.get('remaining_minutes', 0)
+            return self.log_test(
+                "Demo Activate", 
+                remaining_minutes == 10,
+                f"Status: {status}, Token: {self.demo_token[:8]}..., Remaining: {remaining_minutes} min"
+            )
+        else:
+            return self.log_test(
+                "Demo Activate", 
+                False,
+                f"Status: {status}, Response: {data}"
+            )
+
+    def test_demo_status_active(self):
+        """Test demo status when active (should show demo info)"""
+        if not self.token:
+            return self.log_test("Demo Status (Active)", False, "No authentication token")
+        
+        success, status, data = self.make_request('GET', 'api/demo/status', None, 200)
+        
+        if success and data.get('has_demo') and 'remaining_seconds' in data:
+            remaining_seconds = data['remaining_seconds']
+            has_valid_time = remaining_seconds > 0 and remaining_seconds <= 600  # 10 minutes max
+            return self.log_test(
+                "Demo Status (Active)", 
+                has_valid_time,
+                f"Status: {status}, Remaining: {remaining_seconds}s, Token: {data.get('demo_token', 'N/A')[:8]}..."
+            )
+        else:
+            return self.log_test(
+                "Demo Status (Active)", 
+                False,
+                f"Status: {status}, Response: {data}"
+            )
+
+    def test_demo_validate_token(self):
+        """Test demo token validation"""
+        if not self.token:
+            return self.log_test("Demo Validate Token", False, "No authentication token")
+        
+        if not hasattr(self, 'demo_token'):
+            return self.log_test("Demo Validate Token", False, "No demo token available")
+        
+        success, status, data = self.make_request('POST', f'api/demo/validate/{self.demo_token}', {}, 200)
+        
+        if success and 'remaining_seconds' in data:
+            remaining_seconds = data['remaining_seconds']
+            has_valid_time = remaining_seconds > 0 and remaining_seconds <= 600
+            return self.log_test(
+                "Demo Validate Token", 
+                has_valid_time,
+                f"Status: {status}, Remaining: {remaining_seconds}s, Message: {data.get('message', 'N/A')}"
+            )
+        else:
+            return self.log_test(
+                "Demo Validate Token", 
+                False,
+                f"Status: {status}, Response: {data}"
+            )
+
+    def test_demo_validate_invalid_token(self):
+        """Test demo token validation with invalid token (should fail)"""
+        if not self.token:
+            return self.log_test("Demo Validate Invalid Token", False, "No authentication token")
+        
+        fake_token = "invalid-demo-token-12345"
+        success, status, data = self.make_request('POST', f'api/demo/validate/{fake_token}', {}, 404)
+        
+        return self.log_test(
+            "Demo Validate Invalid Token", 
+            success and "invalid" in str(data).lower(),
+            f"Status: {status}, Response: {data}"
+        )
+
+    def test_demo_duplicate_activation(self):
+        """Test activating demo when already active (should return existing demo info)"""
+        if not self.token:
+            return self.log_test("Demo Duplicate Activation", False, "No authentication token")
+        
+        success, status, data = self.make_request('POST', 'api/demo/activate', {}, 200)
+        
+        if success and 'demo_token' in data:
+            is_existing_demo = "already active" in str(data.get('message', '')).lower()
+            return self.log_test(
+                "Demo Duplicate Activation", 
+                is_existing_demo,
+                f"Status: {status}, Message: {data.get('message', 'N/A')}"
+            )
+        else:
+            return self.log_test(
+                "Demo Duplicate Activation", 
+                False,
+                f"Status: {status}, Response: {data}"
+            )
+
+    def test_quests_with_demo_access(self):
+        """Test getting quests with demo access (should have unlimited access)"""
+        if not self.token:
+            return self.log_test("Quests with Demo Access", False, "No authentication token")
+        
+        success, status, data = self.make_request('GET', 'api/quests', None, 200)
+        
+        if success and isinstance(data, list):
+            quest_count = len(data)
+            # With demo access, should get more than 2 quests (freemium limit)
+            has_unlimited_access = quest_count > 2
+            return self.log_test(
+                "Quests with Demo Access", 
+                has_unlimited_access,
+                f"Status: {status}, Quest count: {quest_count} (should be > 2 with demo access)"
+            )
+        else:
+            return self.log_test(
+                "Quests with Demo Access", 
+                False,
+                f"Status: {status}, Response: {data}"
+            )
+
+    def test_today_quests_with_demo_access(self):
+        """Test getting today's quests with demo access (should have unlimited access)"""
+        if not self.token:
+            return self.log_test("Today Quests with Demo Access", False, "No authentication token")
+        
+        success, status, data = self.make_request('GET', 'api/user-quests/today', None, 200)
+        
+        if success and isinstance(data, list):
+            quest_count = len(data)
+            # With demo access, should get more than 2 quests (freemium limit)
+            has_unlimited_access = quest_count > 2
+            # Update quest IDs for completion tests
+            self.quest_ids = [quest['id'] for quest in data if quest.get('id')]
+            return self.log_test(
+                "Today Quests with Demo Access", 
+                has_unlimited_access,
+                f"Status: {status}, Quest count: {quest_count} (should be > 2 with demo access)"
+            )
+        else:
+            return self.log_test(
+                "Today Quests with Demo Access", 
+                False,
+                f"Status: {status}, Response: {data}"
+            )
+
+    def test_dashboard_stats_with_demo_access(self):
+        """Test dashboard stats with demo access (should show demo indicators)"""
+        if not self.token:
+            return self.log_test("Dashboard Stats with Demo Access", False, "No authentication token")
+        
+        success, status, data = self.make_request('GET', 'api/dashboard/stats', None, 200)
+        
+        if success and 'is_demo' in data and 'demo_expires_at' in data:
+            is_demo_active = data['is_demo'] and data['demo_expires_at'] is not None
+            return self.log_test(
+                "Dashboard Stats with Demo Access", 
+                is_demo_active,
+                f"Status: {status}, Is Demo: {data['is_demo']}, Expires: {data.get('demo_expires_at', 'N/A')}"
+            )
+        else:
+            return self.log_test(
+                "Dashboard Stats with Demo Access", 
+                False,
+                f"Status: {status}, Response: {data}"
+            )
+
+    def test_complete_multiple_quests_with_demo(self):
+        """Test completing multiple quests with demo access (should not have daily limits)"""
+        if not self.token:
+            return self.log_test("Complete Multiple Quests (Demo)", False, "No authentication token")
+        
+        if len(self.quest_ids) < 3:
+            return self.log_test("Complete Multiple Quests (Demo)", False, f"Need at least 3 quests, got {len(self.quest_ids)}")
+        
+        completed_count = 0
+        for i, quest_id in enumerate(self.quest_ids[:3]):  # Try to complete 3 quests
+            success, status, data = self.make_request('POST', f'api/user-quests/{quest_id}/complete', {}, 200)
+            if success:
+                completed_count += 1
+            elif status == 400 and "already completed" in str(data).lower():
+                # Quest already completed, count it
+                completed_count += 1
+        
+        # With demo access, should be able to complete more than 2 quests
+        unlimited_access = completed_count >= 3
+        return self.log_test(
+            "Complete Multiple Quests (Demo)", 
+            unlimited_access,
+            f"Completed {completed_count}/3 quests (should be unlimited with demo access)"
+        )
+
     def run_all_tests(self):
         """Run all API tests"""
         print("🚀 Starting Énergie & Bien-être™ API Tests")
