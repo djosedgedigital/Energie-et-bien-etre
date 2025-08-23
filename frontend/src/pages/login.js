@@ -45,14 +45,14 @@ export default function Login() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="bg-white shadow-lg rounded-xl p-8 w-full max-w-md text-center">
+    <div className="flex items-center justify-center min-h-screen bg-gray-50 px-4">
+      <div className="bg-white shadow-lg rounded-xl p-6 lg:p-8 w-full max-w-md text-center">
         <Logo className="h-12 mx-auto mb-6" />
-        <h1 className="text-2xl font-bold text-[var(--color-primary)] mb-2">Connexion</h1>
-        <p className="text-gray-600 mb-6">Accédez à votre espace personnel</p>
+        <h1 className="text-xl lg:text-2xl font-bold text-[var(--color-primary)] mb-2">Connexion</h1>
+        <p className="text-gray-600 mb-6 text-sm lg:text-base">Accédez à votre espace personnel</p>
         
         {error && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
             {error}
           </div>
         )}
@@ -62,7 +62,7 @@ export default function Login() {
             type="email" 
             name="email"
             placeholder="Adresse email" 
-            className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)]" 
+            className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)] text-sm lg:text-base" 
             value={formData.email}
             onChange={handleChange}
             required 
@@ -71,20 +71,20 @@ export default function Login() {
             type="password" 
             name="password"
             placeholder="Mot de passe" 
-            className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)]" 
+            className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)] text-sm lg:text-base" 
             value={formData.password}
             onChange={handleChange}
             required 
           />
           <button 
             type="submit" 
-            className="btn w-full"
+            className="btn w-full text-sm lg:text-base"
             disabled={loading}
           >
             {loading ? "Connexion..." : "Se connecter"}
           </button>
         </form>
-        <p className="mt-6 text-sm text-gray-600">
+        <p className="mt-6 text-xs lg:text-sm text-gray-600">
           Pas encore de compte ? <Link href="/register" className="text-[var(--color-secondary)] font-medium hover:underline">Créer un compte</Link>
         </p>
       </div>
