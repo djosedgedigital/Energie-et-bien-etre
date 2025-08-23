@@ -395,10 +395,12 @@ class HealthcareWellnessAPITester:
         self.test_user_login()
         self.test_get_current_user()
         
-        # Quest system tests (should fail without paid access)
-        self.test_get_quests_without_access()
-        self.test_get_today_quests_without_access()
-        self.test_dashboard_stats_without_access()
+        # Freemium quest system tests (should work with limitations)
+        self.test_get_quests_freemium_access()
+        self.test_get_today_quests_freemium_access()
+        self.test_dashboard_stats_freemium_access()
+        self.test_complete_quest_freemium_access()
+        self.test_complete_quest_daily_limit()
         
         # Payment system tests
         self.test_create_checkout_session()
