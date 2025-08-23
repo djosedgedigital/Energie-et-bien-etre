@@ -404,8 +404,11 @@ export default function Dashboard() {
                     </div>
                     <div className="text-3xl">🎯</div>
                   </div>
-                  {!user?.has_paid_access && (
+                  {!user?.has_paid_access && !demoStatus?.has_demo && (
                     <p className="text-xs text-orange-600 mt-1">Version gratuite: 2 max/jour</p>
+                  )}
+                  {demoStatus?.has_demo && (
+                    <p className="text-xs text-purple-600 mt-1">🔥 Mode Demo Premium</p>
                   )}
                 </div>
                 
