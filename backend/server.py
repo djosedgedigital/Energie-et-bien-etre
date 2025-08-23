@@ -38,7 +38,88 @@ app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
 
-# Define Models
+# Enums
+class ProfessionType(str, Enum):
+    infirmier = "infirmier"
+    aide_soignant = "aide-soignant"
+    medecin = "medecin"
+    autre = "autre"
+
+class QuestStatus(str, Enum):
+    pending = "pending"
+    completed = "completed"
+    missed = "missed"
+
+class QuestType(str, Enum):
+    respiration = "respiration"
+    etirement = "etirement" 
+    hydratation = "hydratation"
+    meditation = "meditation"
+    pause = "pause"
+
+# Models
+class UserCreate(BaseModel):
+    email: EmailStr
+    full_name: str
+    profession: ProfessionType
+    password: str
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class User(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    email: EmailStr
+    full_name: str
+    profession: ProfessionType
+    hashed_password: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    is_active: bool = True
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    full_name: str
+    profession: ProfessionType
+    created_at: datetime
+    is_active: bool
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+    user: UserResponse
+
+class Quest(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    description: str
+    type: QuestType
+    duration_minutes: int
+    points: int = 10
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class UserQuest(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    quest_id: str
+    status: QuestStatus = QuestStatus.pending
+    completed_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class UserProgress(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    date: datetime = Field(default_factory=lambda: datetime.utcnow().date())
+    quests_completed: int = 0
+    total_points: int = 0
+    streak_days: int = 0
+
+class DailyStats(BaseModel):
+    day: str
+    valeur: int
+
+# Keep existing models for backward compatibility
 class StatusCheck(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     client_name: str
