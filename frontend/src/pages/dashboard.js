@@ -52,6 +52,8 @@ export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState(null);
   const [currentQuote, setCurrentQuote] = useState("Prendre soin des autres commence par prendre soin de soi.");
+  const [demoStatus, setDemoStatus] = useState(null);
+  const [demoCountdown, setDemoCountdown] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
