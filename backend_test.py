@@ -260,7 +260,7 @@ class HealthcareWellnessAPITester:
     def test_invalid_login(self):
         """Test login with invalid credentials"""
         invalid_login = {
-            "email": "nonexistent@test.com",
+            "email": "nonexistent@example.com",
             "password": "wrongpassword"
         }
         
