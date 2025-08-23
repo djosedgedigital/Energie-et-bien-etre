@@ -231,6 +231,91 @@ class HealthcareWellnessAPITester:
             f"Status: {status}, Response: {data}"
         )
 
+    def test_create_checkout_session(self):
+        """Test creating Stripe checkout session"""
+        if not self.token:
+            return self.log_test("Create Checkout Session", False, "No authentication token")
+        
+        checkout_data = {
+            "origin_url": "https://soignant-recharge.preview.emergentagent.com"
+        }
+        
+        success, status, data = self.make_request('POST', 'api/payments/checkout/session', checkout_data, 200)
+        
+        if success and 'url' in data and 'session_id' in data:
+            self.session_id = data['session_id']
+            return self.log_test(
+                "Create Checkout Session", 
+                True,
+                f"Session ID: {self.session_id}, URL: {data['url'][:50]}..."
+            )
+        else:
+            return self.log_test(
+                "Create Checkout Session", 
+                False,
+                f"Status: {status}, Response: {data}"
+            )
+
+    def test_checkout_status(self):
+        """Test getting checkout session status"""
+        if not self.token:
+            return self.log_test("Checkout Status", False, "No authentication token")
+        
+        if not self.session_id:
+            return self.log_test("Checkout Status", False, "No session ID available")
+        
+        success, status, data = self.make_request('GET', f'api/payments/checkout/status/{self.session_id}', None, 200)
+        
+        if success and 'status' in data and 'payment_status' in data:
+            return self.log_test(
+                "Checkout Status", 
+                True,
+                f"Status: {data['status']}, Payment: {data['payment_status']}, Amount: {data.get('amount_total', 'N/A')}"
+            )
+        else:
+            return self.log_test(
+                "Checkout Status", 
+                False,
+                f"Status: {status}, Response: {data}"
+            )
+
+    def test_create_checkout_without_auth(self):
+        """Test creating checkout session without authentication (should fail)"""
+        original_token = self.token
+        self.token = None  # Remove token temporarily
+        
+        checkout_data = {
+            "origin_url": "https://soignant-recharge.preview.emergentagent.com"
+        }
+        
+        success, status, data = self.make_request('POST', 'api/payments/checkout/session', checkout_data, 401)
+        
+        self.token = original_token  # Restore token
+        
+        return self.log_test(
+            "Create Checkout (No Auth)", 
+            success,
+            f"Status: {status}, Response: {data}"
+        )
+
+    def test_checkout_status_without_auth(self):
+        """Test getting checkout status without authentication (should fail)"""
+        if not self.session_id:
+            return self.log_test("Checkout Status (No Auth)", False, "No session ID available")
+        
+        original_token = self.token
+        self.token = None  # Remove token temporarily
+        
+        success, status, data = self.make_request('GET', f'api/payments/checkout/status/{self.session_id}', None, 401)
+        
+        self.token = original_token  # Restore token
+        
+        return self.log_test(
+            "Checkout Status (No Auth)", 
+            success,
+            f"Status: {status}, Response: {data}"
+        )
+
     def run_all_tests(self):
         """Run all API tests"""
         print("🚀 Starting Énergie & Bien-être™ API Tests")
