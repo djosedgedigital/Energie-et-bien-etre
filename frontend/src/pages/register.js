@@ -65,14 +65,14 @@ export default function Register() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="bg-white shadow-lg rounded-xl p-8 w-full max-w-md text-center">
+    <div className="flex items-center justify-center min-h-screen bg-gray-50 px-4 py-8">
+      <div className="bg-white shadow-lg rounded-xl p-6 lg:p-8 w-full max-w-md text-center">
         <Logo className="h-12 mx-auto mb-6" />
-        <h1 className="text-2xl font-bold text-[var(--color-primary)] mb-2">Créer un compte</h1>
-        <p className="text-gray-600 mb-6">Rejoignez Énergie & Bien-être™ dès aujourd'hui</p>
+        <h1 className="text-xl lg:text-2xl font-bold text-[var(--color-primary)] mb-2">Créer un compte</h1>
+        <p className="text-gray-600 mb-6 text-sm lg:text-base">Rejoignez Énergie & Bien-être™ dès aujourd'hui</p>
         
         {error && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
             {error}
           </div>
         )}
@@ -82,7 +82,7 @@ export default function Register() {
             type="text" 
             name="full_name"
             placeholder="Nom complet" 
-            className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)]" 
+            className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)] text-sm lg:text-base" 
             value={formData.full_name}
             onChange={handleChange}
             required 
@@ -91,14 +91,14 @@ export default function Register() {
             type="email" 
             name="email"
             placeholder="Adresse email" 
-            className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)]" 
+            className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)] text-sm lg:text-base" 
             value={formData.email}
             onChange={handleChange}
             required 
           />
           <select 
             name="profession"
-            className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)]"
+            className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)] text-sm lg:text-base"
             value={formData.profession}
             onChange={handleChange}
             required
@@ -113,7 +113,7 @@ export default function Register() {
             type="password" 
             name="password"
             placeholder="Mot de passe" 
-            className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)]" 
+            className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)] text-sm lg:text-base" 
             value={formData.password}
             onChange={handleChange}
             required 
@@ -122,20 +122,20 @@ export default function Register() {
             type="password" 
             name="confirmPassword"
             placeholder="Confirmer le mot de passe" 
-            className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)]" 
+            className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)] text-sm lg:text-base" 
             value={formData.confirmPassword}
             onChange={handleChange}
             required 
           />
           <button 
             type="submit" 
-            className="btn w-full"
+            className="btn w-full text-sm lg:text-base"
             disabled={loading}
           >
             {loading ? "Inscription..." : "S'inscrire"}
           </button>
         </form>
-        <p className="mt-6 text-sm text-gray-600">
+        <p className="mt-6 text-xs lg:text-sm text-gray-600">
           Vous avez déjà un compte ? <Link href="/login" className="text-[var(--color-secondary)] font-medium hover:underline">Se connecter</Link>
         </p>
       </div>
