@@ -132,29 +132,18 @@ class HealthcareWellnessAPITester:
             f"Status: {status}, User: {data.get('full_name', 'Unknown')}"
         )
 
-    def test_get_quests(self):
-        """Test getting available quests"""
+    def test_get_quests_without_access(self):
+        """Test getting available quests without paid access (should fail)"""
         if not self.token:
-            return self.log_test("Get Quests", False, "No authentication token")
+            return self.log_test("Get Quests (No Access)", False, "No authentication token")
         
-        success, status, data = self.make_request('GET', 'api/quests', None, 200)
+        success, status, data = self.make_request('GET', 'api/quests', None, 403)
         
-        if success and isinstance(data, list) and len(data) > 0:
-            quest_types = [q.get('type') for q in data]
-            expected_types = ['respiration', 'etirement', 'hydratation', 'meditation']
-            has_expected_types = all(qt in quest_types for qt in expected_types)
-            
-            return self.log_test(
-                "Get Quests", 
-                has_expected_types,
-                f"Found {len(data)} quests with types: {quest_types}"
-            )
-        else:
-            return self.log_test(
-                "Get Quests", 
-                False,
-                f"Status: {status}, Response: {data}"
-            )
+        return self.log_test(
+            "Get Quests (No Access)", 
+            success and "Paid access required" in str(data),
+            f"Status: {status}, Response: {data}"
+        )
 
     def test_get_today_quests(self):
         """Test getting today's user quests"""
