@@ -516,20 +516,20 @@ async def stripe_webhook(request: Request):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Webhook error: {str(e)}")
 
-# Keep existing quest and dashboard routes with access control
+# Quest routes with freemium access
 @api_router.get("/quests", response_model=List[Quest])
 async def get_quests(current_user: User = Depends(get_current_user)):
-    if not current_user.has_paid_access:
-        raise HTTPException(status_code=403, detail="Paid access required")
-    
     quests = await db.quests.find({"is_active": True}).to_list(1000)
+    
+    # Freemium users get access to limited quests
+    if not current_user.has_paid_access:
+        # Limit to first 2 quests for free users
+        quests = quests[:2]
+    
     return [Quest(**quest) for quest in quests]
 
 @api_router.get("/user-quests/today")
 async def get_today_quests(current_user: User = Depends(get_current_user)):
-    if not current_user.has_paid_access:
-        raise HTTPException(status_code=403, detail="Paid access required")
-        
     today = datetime.utcnow().date()
     start_of_day = datetime.combine(today, datetime.min.time())
     end_of_day = datetime.combine(today, datetime.max.time())
@@ -543,6 +543,11 @@ async def get_today_quests(current_user: User = Depends(get_current_user)):
     if not user_quests:
         # Create today's quests
         all_quests = await db.quests.find({"is_active": True, "type": "daily"}).to_list(1000)
+        
+        # Freemium limitation: only 2 quests for free users
+        if not current_user.has_paid_access:
+            all_quests = all_quests[:2]
+        
         today_quests = []
         for quest in all_quests:
             user_quest = UserQuest(
@@ -567,16 +572,14 @@ async def get_today_quests(current_user: User = Depends(get_current_user)):
                 "type": quest["type"],
                 "points_reward": quest["points_reward"],
                 "status": user_quest["status"],
-                "completed_at": user_quest.get("completed_at")
+                "completed_at": user_quest.get("completed_at"),
+                "is_premium": not current_user.has_paid_access  # Flag for UI
             })
     
     return result
 
 @api_router.post("/user-quests/{quest_id}/complete")
 async def complete_quest(quest_id: str, current_user: User = Depends(get_current_user)):
-    if not current_user.has_paid_access:
-        raise HTTPException(status_code=403, detail="Paid access required")
-        
     # Find the user quest
     user_quest = await db.user_quests.find_one({
         "id": quest_id,
@@ -588,6 +591,24 @@ async def complete_quest(quest_id: str, current_user: User = Depends(get_current
     
     if user_quest["status"] == "done":
         raise HTTPException(status_code=400, detail="Quest already completed")
+    
+    # Freemium users have daily limits
+    if not current_user.has_paid_access:
+        today = datetime.utcnow().date()
+        start_of_day = datetime.combine(today, datetime.min.time())
+        end_of_day = datetime.combine(today, datetime.max.time())
+        
+        completed_today = await db.user_quests.count_documents({
+            "user_id": current_user.id,
+            "status": "done",
+            "completed_at": {"$gte": start_of_day, "$lte": end_of_day}
+        })
+        
+        if completed_today >= 2:  # Limit to 2 completions per day for free users
+            raise HTTPException(
+                status_code=403, 
+                detail="Daily limit reached. Upgrade to premium for unlimited access!"
+            )
     
     # Update quest status
     await db.user_quests.update_one(
@@ -618,10 +639,7 @@ async def complete_quest(quest_id: str, current_user: User = Depends(get_current
 
 @api_router.get("/dashboard/stats")
 async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
-    if not current_user.has_paid_access:
-        raise HTTPException(status_code=403, detail="Paid access required")
-        
-    # Get last 7 days progress (placeholder for now)
+    # Basic stats available for all users
     weekly_data = [
         {"day": "Lun", "valeur": 3},
         {"day": "Mar", "valeur": 4},
@@ -652,15 +670,25 @@ async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
     user_xp = await db.user_xp.find_one({"user_id": current_user.id})
     total_points = user_xp["xp_total"] if user_xp else 0
     
-    return {
+    # Add freemium limitations info
+    stats = {
         "weekly_data": weekly_data,
         "today_stats": {
             "quests_completed": completed_today,
             "total_quests": total_quests_today,
             "total_points": total_points,
             "completion_percentage": int((completed_today / total_quests_today * 100)) if total_quests_today > 0 else 0
+        },
+        "is_premium": current_user.has_paid_access,
+        "freemium_limits": {
+            "daily_quests_limit": 2,
+            "daily_completions_limit": 2,
+            "has_full_stats": current_user.has_paid_access,
+            "has_advanced_features": current_user.has_paid_access
         }
     }
+    
+    return stats
 
 @api_router.get("/")
 async def root():
