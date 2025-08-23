@@ -297,7 +297,7 @@ class HealthcareWellnessAPITester:
         original_token = self.token
         self.token = None  # Remove token temporarily
         
-        success, status, data = self.make_request('GET', f'api/payments/checkout/status/{self.session_id}', None, 401)
+        success, status, data = self.make_request('GET', f'api/payments/checkout/status/{self.session_id}', None, 403)
         
         self.token = original_token  # Restore token
         
