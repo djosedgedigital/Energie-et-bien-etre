@@ -54,7 +54,7 @@ class EnergieBienEtreFrontendTester:
             content = response.text
             
             required_elements = [
-                "Énergie & Bien-être™",
+                ("Énergie & Bien-être™", "Énergie &amp; Bien-être™"),  # Check both versions
                 "Votre dose de récupération en 8 minutes",
                 "Pensée pour les soignants",
                 "Commencer maintenant",
@@ -63,8 +63,13 @@ class EnergieBienEtreFrontendTester:
             
             missing_elements = []
             for element in required_elements:
-                if element not in content:
-                    missing_elements.append(element)
+                if isinstance(element, tuple):
+                    # Check both versions
+                    if element[0] not in content and element[1] not in content:
+                        missing_elements.append(element[0])
+                else:
+                    if element not in content:
+                        missing_elements.append(element)
             
             success = len(missing_elements) == 0
             details = f"Missing: {missing_elements}" if missing_elements else "All key elements found"
