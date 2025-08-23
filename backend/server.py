@@ -337,7 +337,7 @@ async def complete_quest(quest_id: str, current_user: User = Depends(get_current
     )
     
     # Update user progress
-    today = datetime.utcnow().date()
+    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     progress = await db.user_progress.find_one({
         "user_id": current_user.id,
         "date": today
