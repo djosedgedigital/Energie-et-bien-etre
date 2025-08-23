@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -7,21 +7,23 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
 import jwt
 from enum import Enum
-
+from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionResponse, CheckoutStatusResponse, CheckoutSessionRequest
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# Security
+# Configuration
 SECRET_KEY = os.environ.get('SECRET_KEY', 'energie-bien-etre-secret-key-2025')
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY')
+PRICE_EUR = 39.00  # Fixed price for energie-bien-etre-access
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
@@ -31,12 +33,9 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# Create the main app without a prefix
-app = FastAPI()
-
-# Create a router with the /api prefix
+# Create the FastAPI app
+app = FastAPI(title="Énergie & Bien-être API", description="API for healthcare workers wellness platform")
 api_router = APIRouter(prefix="/api")
-
 
 # Enums
 class ProfessionType(str, Enum):
@@ -45,19 +44,59 @@ class ProfessionType(str, Enum):
     medecin = "medecin"
     autre = "autre"
 
+class UserRole(str, Enum):
+    user = "user"
+    admin = "admin"
+
 class QuestStatus(str, Enum):
-    pending = "pending"
-    completed = "completed"
-    missed = "missed"
+    todo = "todo"
+    in_progress = "in_progress"
+    done = "done"
 
 class QuestType(str, Enum):
-    respiration = "respiration"
-    etirement = "etirement" 
-    hydratation = "hydratation"
-    meditation = "meditation"
-    pause = "pause"
+    daily = "daily"
+    weekly = "weekly"
+    special = "special"
 
-# Models
+class SkillBranch(str, Enum):
+    stress = "stress"
+    sleep = "sleep"
+    hydration = "hydration"
+    strength = "strength"
+    resilience = "resilience"
+
+class LibraryCategory(str, Enum):
+    recette = "recette"
+    etirement = "etirement"
+    playlist = "playlist"
+    fiche5 = "fiche5"
+
+class PaymentStatus(str, Enum):
+    pending = "pending"
+    paid = "paid"
+    failed = "failed"
+    expired = "expired"
+
+# Core Models
+class User(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    email: EmailStr
+    full_name: str
+    profession: ProfessionType
+    role: UserRole = UserRole.user
+    hashed_password: str
+    is_active: bool = True
+    has_paid_access: bool = False
+    settings: Dict[str, Any] = Field(default_factory=lambda: {
+        "water_goal_ml": 2000,
+        "sleep_goal_h": 8,
+        "activity_goal_min": 30,
+        "serenity_goal_min": 10,
+        "notifications_daily": True,
+        "theme_pref": "forest"
+    })
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
 class UserCreate(BaseModel):
     email: EmailStr
     full_name: str
@@ -68,20 +107,14 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
-class User(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    email: EmailStr
-    full_name: str
-    profession: ProfessionType
-    hashed_password: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    is_active: bool = True
-
 class UserResponse(BaseModel):
     id: str
     email: str
     full_name: str
     profession: ProfessionType
+    role: UserRole
+    has_paid_access: bool
+    settings: Dict[str, Any]
     created_at: datetime
     is_active: bool
 
@@ -90,43 +123,95 @@ class Token(BaseModel):
     token_type: str
     user: UserResponse
 
+# Payment Models
+class PaymentTransaction(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: Optional[str] = None
+    email: Optional[str] = None
+    session_id: str
+    amount: float
+    currency: str
+    payment_status: PaymentStatus
+    metadata: Dict[str, str] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class CheckoutRequest(BaseModel):
+    origin_url: str
+
+# Habit and Progress Models
+class HabitLog(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    date: datetime = Field(default_factory=lambda: datetime.utcnow().date())
+    water_ml: int = 0
+    sleep_h: float = 0.0
+    nutrition_score_0_100: int = 0
+    activity_min: int = 0
+    serenity_min: int = 0
+    mood_1_10: int = 5
+    stress_0_10: int = 5
+    notes: Optional[str] = None
+    energy_score: int = 0
+
 class Quest(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     title: str
     description: str
     type: QuestType
-    duration_minutes: int
-    points: int = 10
+    points_reward: int = 10
+    badge_id: Optional[str] = None
+    branch: Optional[SkillBranch] = None
+    is_global: bool = True
+    is_active: bool = True
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class UserQuest(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     user_id: str
     quest_id: str
-    status: QuestStatus = QuestStatus.pending
+    date_assigned: datetime = Field(default_factory=datetime.utcnow)
+    status: QuestStatus = QuestStatus.todo
     completed_at: Optional[datetime] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
 
-class UserProgress(BaseModel):
+class Badge(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    code: str
+    label: str
+    description: str
+    icon: str
+
+class Level(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    number: int
+    xp_required: int
+
+class UserXP(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     user_id: str
-    date: datetime = Field(default_factory=lambda: datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0))
-    quests_completed: int = 0
-    total_points: int = 0
-    streak_days: int = 0
+    xp_total: int = 0
+    level_number: int = 1
 
-class DailyStats(BaseModel):
-    day: str
-    valeur: int
-
-# Keep existing models for backward compatibility
-class StatusCheck(BaseModel):
+class Quote(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    text: str
+    author: Optional[str] = None
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
+class LibraryItem(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    category: LibraryCategory
+    title: str
+    content_md: str
+    media_url: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+
+class Theme(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    code: str
+    label: str
+    accent: str
+    bg: str
+    audio_url: Optional[str] = None
 
 # Authentication utilities
 def verify_password(plain_password, hashed_password):
@@ -164,49 +249,83 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise credentials_exception
     return User(**user)
 
-# Initialize default quests
-async def initialize_default_quests():
+# Gamification utilities
+def calculate_energy_score(habit_log: HabitLog, user_settings: Dict[str, Any]) -> int:
+    """Calculate energy score based on habit completion"""
+    hydration_pct = min(100, (habit_log.water_ml / user_settings.get("water_goal_ml", 2000)) * 100)
+    sleep_pct = min(100, (habit_log.sleep_h / user_settings.get("sleep_goal_h", 8)) * 100)
+    nutrition_pct = habit_log.nutrition_score_0_100
+    activity_pct = min(100, (habit_log.activity_min / user_settings.get("activity_goal_min", 30)) * 100)
+    serenity_pct = min(100, (habit_log.serenity_min / user_settings.get("serenity_goal_min", 10)) * 100)
+    
+    energy = round(hydration_pct * 0.25 + sleep_pct * 0.30 + nutrition_pct * 0.20 + activity_pct * 0.15 + serenity_pct * 0.10)
+    return min(100, energy)
+
+# Initialize default data
+async def initialize_default_data():
+    # Initialize default quests
     existing_quests = await db.quests.count_documents({})
     if existing_quests == 0:
         default_quests = [
             {
                 "id": str(uuid.uuid4()),
-                "title": "Pause respiration",
-                "description": "Exercice de respiration profonde pour se détendre",
-                "type": "respiration",
-                "duration_minutes": 3,
-                "points": 15,
+                "title": "Pause respiration profonde",
+                "description": "3 minutes de respiration consciente pour réduire le stress",
+                "type": "daily",
+                "points_reward": 15,
+                "branch": "stress",
+                "is_global": True,
+                "is_active": True,
                 "created_at": datetime.utcnow()
             },
             {
                 "id": str(uuid.uuid4()),
-                "title": "Étirement rapide",
-                "description": "Quelques étirements pour détendre les muscles",
-                "type": "etirement",
-                "duration_minutes": 5,
-                "points": 20,
+                "title": "Étirement express",
+                "description": "5 minutes d'étirements pour détendre les muscles",
+                "type": "daily",
+                "points_reward": 20,
+                "branch": "strength",
+                "is_global": True,
+                "is_active": True,
                 "created_at": datetime.utcnow()
             },
             {
                 "id": str(uuid.uuid4()),
-                "title": "Hydratation",
-                "description": "Boire un grand verre d'eau",
-                "type": "hydratation",
-                "duration_minutes": 1,
-                "points": 10,
+                "title": "Hydratation consciente",
+                "description": "Boire un grand verre d'eau en pleine conscience",
+                "type": "daily",
+                "points_reward": 10,
+                "branch": "hydration",
+                "is_global": True,
+                "is_active": True,
                 "created_at": datetime.utcnow()
             },
             {
                 "id": str(uuid.uuid4()),
-                "title": "Mini méditation",
-                "description": "2 minutes de pleine conscience",
-                "type": "meditation",
-                "duration_minutes": 2,
-                "points": 25,
+                "title": "Moment de gratitude",
+                "description": "2 minutes pour noter 3 choses positives de la journée",
+                "type": "daily",
+                "points_reward": 25,
+                "branch": "resilience",
+                "is_global": True,
+                "is_active": True,
                 "created_at": datetime.utcnow()
             }
         ]
         await db.quests.insert_many(default_quests)
+
+    # Initialize quotes
+    existing_quotes = await db.quotes.count_documents({})
+    if existing_quotes == 0:
+        default_quotes = [
+            {"id": str(uuid.uuid4()), "text": "Prendre soin des autres commence par prendre soin de soi.", "author": "Anonyme"},
+            {"id": str(uuid.uuid4()), "text": "Chaque petit geste de bien-être compte dans votre quotidien.", "author": "Discipline-90"},
+            {"id": str(uuid.uuid4()), "text": "Votre énergie est précieuse, rechargez-la consciemment.", "author": "Discipline-90"},
+            {"id": str(uuid.uuid4()), "text": "La respiration est le pont entre le corps et l'esprit.", "author": "Thich Nhat Hanh"},
+            {"id": str(uuid.uuid4()), "text": "Il n'y a pas de honte à prendre une pause, c'est de la sagesse.", "author": "Anonyme"},
+        ]
+        await db.quotes.insert_many(default_quotes)
+
 # Authentication routes
 @api_router.post("/auth/register", response_model=Token)
 async def register(user_data: UserCreate):
@@ -260,14 +379,157 @@ async def login(user_credentials: UserLogin):
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     return UserResponse(**current_user.dict())
 
-# Quest routes
+# Payment routes
+@api_router.post("/payments/checkout/session")
+async def create_checkout_session(
+    request: CheckoutRequest,
+    http_request: Request,
+    current_user: User = Depends(get_current_user)
+):
+    try:
+        # Initialize Stripe checkout
+        host_url = str(http_request.base_url).rstrip('/')
+        webhook_url = f"{host_url}/api/stripe/webhook"
+        stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+        
+        # Build URLs from frontend origin
+        success_url = f"{request.origin_url}/dashboard?purchase=success&session_id={{CHECKOUT_SESSION_ID}}"
+        cancel_url = f"{request.origin_url}/pricing?canceled=1"
+        
+        # Create checkout session
+        checkout_request = CheckoutSessionRequest(
+            amount=PRICE_EUR,
+            currency="eur",
+            success_url=success_url,
+            cancel_url=cancel_url,
+            metadata={
+                "user_id": current_user.id,
+                "user_email": current_user.email,
+                "product": "energie-bien-etre-access"
+            }
+        )
+        
+        session = await stripe_checkout.create_checkout_session(checkout_request)
+        
+        # Create payment transaction record
+        payment_transaction = PaymentTransaction(
+            user_id=current_user.id,
+            email=current_user.email,
+            session_id=session.session_id,
+            amount=PRICE_EUR,
+            currency="eur",
+            payment_status=PaymentStatus.pending,
+            metadata=checkout_request.metadata
+        )
+        
+        await db.payment_transactions.insert_one(payment_transaction.dict())
+        
+        return {"url": session.url, "session_id": session.session_id}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating checkout session: {str(e)}")
+
+@api_router.get("/payments/checkout/status/{session_id}")
+async def get_checkout_status(
+    session_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    try:
+        # Initialize Stripe checkout
+        stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url="")
+        
+        # Get checkout status from Stripe
+        checkout_status = await stripe_checkout.get_checkout_status(session_id)
+        
+        # Update payment transaction in database
+        payment_transaction = await db.payment_transactions.find_one({"session_id": session_id})
+        if payment_transaction:
+            new_status = PaymentStatus.paid if checkout_status.payment_status == "paid" else PaymentStatus.pending
+            if checkout_status.status == "expired":
+                new_status = PaymentStatus.expired
+            
+            await db.payment_transactions.update_one(
+                {"session_id": session_id},
+                {
+                    "$set": {
+                        "payment_status": new_status,
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+            
+            # If payment is successful, grant access to user
+            if new_status == PaymentStatus.paid and not current_user.has_paid_access:
+                await db.users.update_one(
+                    {"id": current_user.id},
+                    {"$set": {"has_paid_access": True}}
+                )
+        
+        return {
+            "status": checkout_status.status,
+            "payment_status": checkout_status.payment_status,
+            "amount_total": checkout_status.amount_total,
+            "currency": checkout_status.currency
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error checking payment status: {str(e)}")
+
+@api_router.post("/stripe/webhook")
+async def stripe_webhook(request: Request):
+    try:
+        body = await request.body()
+        signature = request.headers.get("Stripe-Signature")
+        
+        # Initialize Stripe checkout
+        stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url="")
+        
+        # Handle webhook
+        webhook_response = await stripe_checkout.handle_webhook(body, signature)
+        
+        # Process webhook events
+        if webhook_response.event_type == "checkout.session.completed":
+            session_id = webhook_response.session_id
+            
+            # Update payment transaction
+            payment_transaction = await db.payment_transactions.find_one({"session_id": session_id})
+            if payment_transaction:
+                await db.payment_transactions.update_one(
+                    {"session_id": session_id},
+                    {
+                        "$set": {
+                            "payment_status": PaymentStatus.paid,
+                            "updated_at": datetime.utcnow()
+                        }
+                    }
+                )
+                
+                # Grant access to user
+                if payment_transaction.get("user_id"):
+                    await db.users.update_one(
+                        {"id": payment_transaction["user_id"]},
+                        {"$set": {"has_paid_access": True}}
+                    )
+        
+        return {"status": "success"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Webhook error: {str(e)}")
+
+# Keep existing quest and dashboard routes with access control
 @api_router.get("/quests", response_model=List[Quest])
 async def get_quests(current_user: User = Depends(get_current_user)):
-    quests = await db.quests.find().to_list(1000)
+    if not current_user.has_paid_access:
+        raise HTTPException(status_code=403, detail="Paid access required")
+    
+    quests = await db.quests.find({"is_active": True}).to_list(1000)
     return [Quest(**quest) for quest in quests]
 
 @api_router.get("/user-quests/today")
 async def get_today_quests(current_user: User = Depends(get_current_user)):
+    if not current_user.has_paid_access:
+        raise HTTPException(status_code=403, detail="Paid access required")
+        
     today = datetime.utcnow().date()
     start_of_day = datetime.combine(today, datetime.min.time())
     end_of_day = datetime.combine(today, datetime.max.time())
@@ -275,12 +537,12 @@ async def get_today_quests(current_user: User = Depends(get_current_user)):
     # Get user's quests for today
     user_quests = await db.user_quests.find({
         "user_id": current_user.id,
-        "created_at": {"$gte": start_of_day, "$lte": end_of_day}
+        "date_assigned": {"$gte": start_of_day, "$lte": end_of_day}
     }).to_list(1000)
     
     if not user_quests:
         # Create today's quests
-        all_quests = await db.quests.find().to_list(1000)
+        all_quests = await db.quests.find({"is_active": True, "type": "daily"}).to_list(1000)
         today_quests = []
         for quest in all_quests:
             user_quest = UserQuest(
@@ -303,8 +565,7 @@ async def get_today_quests(current_user: User = Depends(get_current_user)):
                 "title": quest["title"],
                 "description": quest["description"],
                 "type": quest["type"],
-                "duration_minutes": quest["duration_minutes"],
-                "points": quest["points"],
+                "points_reward": quest["points_reward"],
                 "status": user_quest["status"],
                 "completed_at": user_quest.get("completed_at")
             })
@@ -313,6 +574,9 @@ async def get_today_quests(current_user: User = Depends(get_current_user)):
 
 @api_router.post("/user-quests/{quest_id}/complete")
 async def complete_quest(quest_id: str, current_user: User = Depends(get_current_user)):
+    if not current_user.has_paid_access:
+        raise HTTPException(status_code=403, detail="Paid access required")
+        
     # Find the user quest
     user_quest = await db.user_quests.find_one({
         "id": quest_id,
@@ -322,7 +586,7 @@ async def complete_quest(quest_id: str, current_user: User = Depends(get_current
     if not user_quest:
         raise HTTPException(status_code=404, detail="Quest not found")
     
-    if user_quest["status"] == "completed":
+    if user_quest["status"] == "done":
         raise HTTPException(status_code=400, detail="Quest already completed")
     
     # Update quest status
@@ -330,85 +594,63 @@ async def complete_quest(quest_id: str, current_user: User = Depends(get_current
         {"id": quest_id},
         {
             "$set": {
-                "status": "completed",
+                "status": "done",
                 "completed_at": datetime.utcnow()
             }
         }
     )
     
-    # Update user progress
-    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    progress = await db.user_progress.find_one({
-        "user_id": current_user.id,
-        "date": today
-    })
-    
+    # Update user XP
     quest_info = await db.quests.find_one({"id": user_quest["quest_id"]})
-    points = quest_info["points"] if quest_info else 10
+    points = quest_info["points_reward"] if quest_info else 10
     
-    if not progress:
-        new_progress = UserProgress(
-            user_id=current_user.id,
-            date=today,
-            quests_completed=1,
-            total_points=points,
-            streak_days=1
-        )
-        await db.user_progress.insert_one(new_progress.dict())
+    user_xp = await db.user_xp.find_one({"user_id": current_user.id})
+    if not user_xp:
+        new_xp = UserXP(user_id=current_user.id, xp_total=points)
+        await db.user_xp.insert_one(new_xp.dict())
     else:
-        await db.user_progress.update_one(
-            {"id": progress["id"]},
-            {
-                "$inc": {
-                    "quests_completed": 1,
-                    "total_points": points
-                }
-            }
+        await db.user_xp.update_one(
+            {"user_id": current_user.id},
+            {"$inc": {"xp_total": points}}
         )
     
     return {"message": "Quest completed successfully", "points_earned": points}
 
-# Dashboard routes
 @api_router.get("/dashboard/stats")
 async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
-    # Get last 7 days progress
-    end_date = datetime.utcnow().replace(hour=23, minute=59, second=59, microsecond=999999)
-    start_date = (end_date - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
+    if not current_user.has_paid_access:
+        raise HTTPException(status_code=403, detail="Paid access required")
+        
+    # Get last 7 days progress (placeholder for now)
+    weekly_data = [
+        {"day": "Lun", "valeur": 3},
+        {"day": "Mar", "valeur": 4},
+        {"day": "Mer", "valeur": 2},
+        {"day": "Jeu", "valeur": 5},
+        {"day": "Ven", "valeur": 4},
+        {"day": "Sam", "valeur": 6},
+        {"day": "Dim", "valeur": 3},
+    ]
     
-    progress_data = await db.user_progress.find({
-        "user_id": current_user.id,
-        "date": {"$gte": start_date, "$lte": end_date}
-    }).to_list(1000)
-    
-    # Create weekly chart data
-    days = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
-    weekly_data = []
-    
-    for i in range(7):
-        current_date = start_date + timedelta(days=i)
-        day_progress = next((p for p in progress_data if p["date"].date() == current_date.date()), None)
-        weekly_data.append({
-            "day": days[i],
-            "valeur": day_progress["quests_completed"] if day_progress else 0
-        })
-    
-    # Get today's stats
-    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    today_progress = await db.user_progress.find_one({
-        "user_id": current_user.id,
-        "date": today
-    })
+    # Get today's quest completion
+    today = datetime.utcnow().date()
+    start_of_day = datetime.combine(today, datetime.min.time())
+    end_of_day = datetime.combine(today, datetime.max.time())
     
     total_quests_today = await db.user_quests.count_documents({
         "user_id": current_user.id,
-        "created_at": {
-            "$gte": today,
-            "$lte": today.replace(hour=23, minute=59, second=59, microsecond=999999)
-        }
+        "date_assigned": {"$gte": start_of_day, "$lte": end_of_day}
     })
     
-    completed_today = today_progress["quests_completed"] if today_progress else 0
-    total_points = today_progress["total_points"] if today_progress else 0
+    completed_today = await db.user_quests.count_documents({
+        "user_id": current_user.id,
+        "date_assigned": {"$gte": start_of_day, "$lte": end_of_day},
+        "status": "done"
+    })
+    
+    # Get user XP
+    user_xp = await db.user_xp.find_one({"user_id": current_user.id})
+    total_points = user_xp["xp_total"] if user_xp else 0
     
     return {
         "weekly_data": weekly_data,
@@ -423,18 +665,6 @@ async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
 @api_router.get("/")
 async def root():
     return {"message": "Énergie & Bien-être™ API - Ready for healthcare workers!"}
-
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.dict()
-    status_obj = StatusCheck(**status_dict)
-    _ = await db.status_checks.insert_one(status_obj.dict())
-    return status_obj
-
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    status_checks = await db.status_checks.find().to_list(1000)
-    return [StatusCheck(**status_check) for status_check in status_checks]
 
 # Include the router in the main app
 app.include_router(api_router)
@@ -456,7 +686,7 @@ logger = logging.getLogger(__name__)
 
 @app.on_event("startup")
 async def startup_event():
-    await initialize_default_quests()
+    await initialize_default_data()
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
