@@ -329,15 +329,20 @@ class HealthcareWellnessAPITester:
         self.test_user_login()
         self.test_get_current_user()
         
-        # Quest system tests
-        self.test_get_quests()
-        self.test_get_today_quests()
-        self.test_complete_quest()
-        self.test_dashboard_stats()
+        # Quest system tests (should fail without paid access)
+        self.test_get_quests_without_access()
+        self.test_get_today_quests_without_access()
+        self.test_dashboard_stats_without_access()
+        
+        # Payment system tests
+        self.test_create_checkout_session()
+        self.test_checkout_status()
         
         # Error handling tests
         self.test_duplicate_registration()
         self.test_invalid_login()
+        self.test_create_checkout_without_auth()
+        self.test_checkout_status_without_auth()
         
         # Final results
         print("=" * 60)
