@@ -6,6 +6,44 @@ import axios from "axios";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
+// Function to get URL parameters
+function getUrlParameter(name) {
+  name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+  const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+  const results = regex.exec(location.search);
+  return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+}
+
+// Function to poll payment status
+async function pollPaymentStatus(sessionId, attempts = 0) {
+  const maxAttempts = 5;
+  const pollInterval = 2000; // 2 seconds
+
+  if (attempts >= maxAttempts) {
+    return { status: 'timeout' };
+  }
+
+  try {
+    const token = localStorage.getItem("token");
+    const response = await axios.get(`${BACKEND_URL}/api/payments/checkout/status/${sessionId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (response.data.payment_status === 'paid') {
+      return { status: 'success' };
+    } else if (response.data.status === 'expired') {
+      return { status: 'expired' };
+    }
+
+    // If payment is still pending, continue polling
+    await new Promise(resolve => setTimeout(resolve, pollInterval));
+    return await pollPaymentStatus(sessionId, attempts + 1);
+  } catch (error) {
+    console.error('Error checking payment status:', error);
+    return { status: 'error' };
+  }
+}
+
 export default function Dashboard() {
   const [active, setActive] = useState("Accueil");
   const [user, setUser] = useState(null);
@@ -13,6 +51,7 @@ export default function Dashboard() {
   const [dashboardStats, setDashboardStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -25,7 +64,30 @@ export default function Dashboard() {
         return;
       }
       
-      setUser(JSON.parse(userData));
+      const parsedUser = JSON.parse(userData);
+      setUser(parsedUser);
+
+      // Check if returning from Stripe payment
+      const sessionId = getUrlParameter('session_id');
+      const purchaseStatus = getUrlParameter('purchase');
+      
+      if (sessionId && purchaseStatus === 'success') {
+        setPaymentStatus('checking');
+        pollPaymentStatus(sessionId).then(result => {
+          if (result.status === 'success') {
+            setPaymentStatus('success');
+            // Update user data to reflect paid access
+            const updatedUser = { ...parsedUser, has_paid_access: true };
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+            setUser(updatedUser);
+            // Clean URL
+            window.history.replaceState({}, document.title, "/dashboard");
+          } else {
+            setPaymentStatus('failed');
+          }
+        });
+      }
+      
       fetchData(token);
     }
   }, [router]);
@@ -48,6 +110,9 @@ export default function Dashboard() {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         router.push("/login");
+      } else if (error.response?.status === 403) {
+        // User doesn't have paid access
+        console.log("Paid access required");
       }
     } finally {
       setLoading(false);
@@ -89,6 +154,68 @@ export default function Dashboard() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-lg">Chargement...</div>
+      </div>
+    );
+  }
+
+  // Payment success banner
+  const PaymentSuccessBanner = () => {
+    if (paymentStatus === 'checking') {
+      return (
+        <div className="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 m-4 rounded">
+          <p className="font-medium">🔄 Vérification du paiement en cours...</p>
+        </div>
+      );
+    }
+    
+    if (paymentStatus === 'success') {
+      return (
+        <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 m-4 rounded">
+          <p className="font-medium">🎉 Paiement réussi ! Bienvenue dans Énergie & Bien-être™</p>
+          <p className="text-sm mt-1">Vous avez maintenant accès à toutes les fonctionnalités.</p>
+        </div>
+      );
+    }
+
+    if (paymentStatus === 'failed') {
+      return (
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 m-4 rounded">
+          <p className="font-medium">❌ Problème avec le paiement</p>
+          <p className="text-sm mt-1">Veuillez contacter le support si le problème persiste.</p>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  // Access required screen
+  if (user && !user.has_paid_access) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
+          <Logo className="h-12 mx-auto mb-6" />
+          <h1 className="text-2xl font-bold text-[var(--color-primary)] mb-4">
+            Accès Premium Requis
+          </h1>
+          <p className="text-gray-600 mb-6">
+            Pour accéder aux fonctionnalités complètes d'Énergie & Bien-être™, un accès premium est nécessaire.
+          </p>
+          <div className="space-y-4">
+            <button 
+              onClick={() => router.push('/pricing')}
+              className="btn w-full"
+            >
+              Débloquer l'accès - 39€
+            </button>
+            <button 
+              onClick={handleLogout}
+              className="w-full px-4 py-2 text-gray-600 hover:text-gray-800"
+            >
+              Se déconnecter
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -145,6 +272,8 @@ export default function Dashboard() {
 
       {/* Main content */}
       <main className="flex-1 p-4 lg:p-10 pt-16 lg:pt-10">
+        <PaymentSuccessBanner />
+        
         <h1 className="text-2xl lg:text-3xl font-bold text-[var(--color-primary)] mb-6">{active}</h1>
 
         {active==="Accueil" && (
@@ -187,11 +316,11 @@ export default function Dashboard() {
                     <h3 className="font-semibold text-[var(--color-primary)]">{quest.title}</h3>
                     <p className="text-gray-600 text-sm lg:text-base">{quest.description}</p>
                     <p className="text-sm text-[var(--color-secondary)]">
-                      {quest.duration_minutes} min • {quest.points} points
+                      {quest.points_reward} points
                     </p>
                   </div>
                   <div className="flex-shrink-0">
-                    {quest.status === "completed" ? (
+                    {quest.status === "done" ? (
                       <span className="px-4 py-2 bg-green-100 text-green-800 rounded-lg font-medium text-sm">
                         ✅ Terminée
                       </span>
@@ -240,6 +369,16 @@ export default function Dashboard() {
               <div>
                 <label className="font-semibold text-[var(--color-primary)]">Métier :</label>
                 <p className="text-gray-700 capitalize">{user.profession}</p>
+              </div>
+              <div>
+                <label className="font-semibold text-[var(--color-primary)]">Statut :</label>
+                <p className="text-gray-700">
+                  {user.has_paid_access ? (
+                    <span className="text-green-600 font-medium">✅ Accès Premium</span>
+                  ) : (
+                    <span className="text-orange-600 font-medium">⏳ Accès Limité</span>
+                  )}
+                </p>
               </div>
               <div>
                 <label className="font-semibold text-[var(--color-primary)]">Membre depuis :</label>
