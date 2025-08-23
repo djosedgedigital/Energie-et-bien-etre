@@ -234,28 +234,50 @@ export default function Dashboard() {
     return null;
   };
 
-  // Freemium upgrade banner
-  const FreemiumBanner = () => {
-    if (user?.has_paid_access) return null;
+  // Demo Premium banner
+  const DemoBanner = () => {
+    if (user?.has_paid_access && !demoStatus?.has_demo) return null;
     
-    return (
-      <div className="bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] text-white p-4 m-4 rounded-lg shadow-lg">
-        <div className="flex flex-col lg:flex-row items-center justify-between">
-          <div className="mb-4 lg:mb-0">
-            <h3 className="text-lg font-bold mb-2">🚀 Débloquez votre potentiel bien-être !</h3>
-            <p className="text-sm opacity-90">
-              Vous utilisez la version gratuite. Passez Premium pour des quêtes illimitées, statistiques avancées et plus !
-            </p>
+    if (demoStatus?.has_demo && demoCountdown > 0) {
+      return (
+        <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-4 m-4 rounded-lg shadow-lg">
+          <div className="flex flex-col lg:flex-row items-center justify-between">
+            <div className="mb-2 lg:mb-0">
+              <h3 className="text-lg font-bold mb-1">🚀 Mode Demo Premium Actif !</h3>
+              <p className="text-sm opacity-90">
+                Toutes les fonctionnalités débloquées - Temps restant : {formatTime(demoCountdown)}
+              </p>
+            </div>
+            <div className="bg-white bg-opacity-20 px-4 py-2 rounded-lg">
+              <span className="font-bold text-xl">{formatTime(demoCountdown)}</span>
+            </div>
           </div>
-          <button 
-            onClick={() => router.push('/pricing')}
-            className="bg-white text-[var(--color-primary)] px-6 py-3 rounded-lg font-bold hover:shadow-lg transition-all"
-          >
-            Passer Premium - 39€
-          </button>
         </div>
-      </div>
-    );
+      );
+    }
+
+    if (!user?.has_paid_access && !demoStatus?.has_demo) {
+      return (
+        <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white p-4 m-4 rounded-lg shadow-lg">
+          <div className="flex flex-col lg:flex-row items-center justify-between">
+            <div className="mb-4 lg:mb-0">
+              <h3 className="text-lg font-bold mb-2">✨ Testez TOUTES les fonctionnalités !</h3>
+              <p className="text-sm opacity-90">
+                Activez une demo de 10 minutes pour découvrir l'expérience Premium complète
+              </p>
+            </div>
+            <button 
+              onClick={activateDemo}
+              className="bg-white text-orange-600 px-6 py-3 rounded-lg font-bold hover:shadow-lg transition-all"
+            >
+              Demo 10 min GRATUITE
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
   };
 
   const energyLevel = dashboardStats?.today_stats?.completion_percentage || 0;
