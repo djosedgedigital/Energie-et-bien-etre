@@ -70,7 +70,7 @@ class HealthcareWellnessAPITester:
         """Test user registration"""
         timestamp = datetime.now().strftime("%H%M%S")
         test_user = {
-            "email": f"test_user_{timestamp}@healthcare.test",
+            "email": f"test_user_{timestamp}@example.com",
             "full_name": f"Dr. Test User {timestamp}",
             "profession": "infirmier",
             "password": "TestPassword123!"
