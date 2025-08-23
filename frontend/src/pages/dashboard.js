@@ -108,11 +108,8 @@ export default function Dashboard() {
       console.error("Error fetching data:", error);
       if (error.response?.status === 401) {
         localStorage.removeItem("token");
-        localStorage.removeItem("user");
+        localStorage.removeUser("user");
         router.push("/login");
-      } else if (error.response?.status === 403) {
-        // User doesn't have paid access
-        console.log("Paid access required");
       }
     } finally {
       setLoading(false);
