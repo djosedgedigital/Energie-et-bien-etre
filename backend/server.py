@@ -249,7 +249,50 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise credentials_exception
     return User(**user)
 
-# Gamification utilities
+# Demo Premium Models
+class DemoAccess(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    demo_token: str
+    expires_at: datetime
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    is_active: bool = True
+
+# Demo Premium utilities
+def generate_demo_token():
+    return str(uuid.uuid4())
+
+async def is_demo_access_valid(demo_token: str) -> Optional[DemoAccess]:
+    """Check if demo access token is valid and not expired"""
+    demo_access = await db.demo_access.find_one({
+        "demo_token": demo_token,
+        "is_active": True,
+        "expires_at": {"$gt": datetime.utcnow()}
+    })
+    return DemoAccess(**demo_access) if demo_access else None
+
+async def get_user_with_demo_check(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Get current user and check for demo access"""
+    # First get the regular user
+    user = await get_current_user(credentials)
+    
+    # If user already has paid access, return as is
+    if user.has_paid_access:
+        return user
+    
+    # Check if user has active demo access
+    demo_access = await db.demo_access.find_one({
+        "user_id": user.id,
+        "is_active": True,
+        "expires_at": {"$gt": datetime.utcnow()}
+    })
+    
+    if demo_access:
+        # Temporarily grant premium access for this request
+        user.has_paid_access = True
+        user.demo_expires_at = demo_access["expires_at"]
+    
+    return user
 def calculate_energy_score(habit_log: HabitLog, user_settings: Dict[str, Any]) -> int:
     """Calculate energy score based on habit completion"""
     hydration_pct = min(100, (habit_log.water_ml / user_settings.get("water_goal_ml", 2000)) * 100)
