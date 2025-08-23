@@ -102,6 +102,15 @@ export default function Dashboard() {
       const statsResponse = await axios.get(`${BACKEND_URL}/api/dashboard/stats`, { headers });
       setDashboardStats(statsResponse.data);
       
+      // Check demo status
+      const demoResponse = await axios.get(`${BACKEND_URL}/api/demo/status`, { headers });
+      setDemoStatus(demoResponse.data);
+      
+      // Start countdown if demo is active
+      if (demoResponse.data.has_demo && demoResponse.data.remaining_seconds > 0) {
+        startDemoCountdown(demoResponse.data.remaining_seconds);
+      }
+      
     } catch (error) {
       console.error("Error fetching data:", error);
       if (error.response?.status === 401) {
@@ -112,6 +121,46 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const startDemoCountdown = (seconds) => {
+    setDemoCountdown(seconds);
+    const interval = setInterval(() => {
+      setDemoCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          // Refresh data when demo expires
+          const token = localStorage.getItem("token");
+          if (token) fetchData(token);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const activateDemo = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
+      
+      const response = await axios.post(`${BACKEND_URL}/api/demo/activate`, {}, { headers });
+      
+      // Refresh data to show demo features
+      fetchData(token);
+      
+      alert(`🎉 Demo Premium activé pour 10 minutes ! Toutes les fonctionnalités sont débloquées.`);
+      
+    } catch (error) {
+      console.error("Error activating demo:", error);
+      alert("Erreur lors de l'activation de la demo. Veuillez réessayer.");
+    }
+  };
+
+  const formatTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
   const completeQuest = async (questId) => {
