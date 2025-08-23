@@ -182,41 +182,18 @@ class HealthcareWellnessAPITester:
                 f"Status: {status}, Response: {data}"
             )
 
-    def test_dashboard_stats(self):
-        """Test getting dashboard statistics"""
+    def test_dashboard_stats_without_access(self):
+        """Test getting dashboard statistics without paid access (should fail)"""
         if not self.token:
-            return self.log_test("Dashboard Stats", False, "No authentication token")
+            return self.log_test("Dashboard Stats (No Access)", False, "No authentication token")
         
-        success, status, data = self.make_request('GET', 'api/dashboard/stats', None, 200)
+        success, status, data = self.make_request('GET', 'api/dashboard/stats', None, 403)
         
-        if success and 'weekly_data' in data and 'today_stats' in data:
-            weekly_data = data['weekly_data']
-            today_stats = data['today_stats']
-            
-            has_weekly_structure = (
-                isinstance(weekly_data, list) and 
-                len(weekly_data) == 7 and
-                all('day' in item and 'valeur' in item for item in weekly_data)
-            )
-            
-            has_today_structure = (
-                'quests_completed' in today_stats and
-                'total_quests' in today_stats and
-                'total_points' in today_stats and
-                'completion_percentage' in today_stats
-            )
-            
-            return self.log_test(
-                "Dashboard Stats", 
-                has_weekly_structure and has_today_structure,
-                f"Weekly data: {len(weekly_data)} days, Today: {today_stats['quests_completed']}/{today_stats['total_quests']} quests"
-            )
-        else:
-            return self.log_test(
-                "Dashboard Stats", 
-                False,
-                f"Status: {status}, Response: {data}"
-            )
+        return self.log_test(
+            "Dashboard Stats (No Access)", 
+            success and "Paid access required" in str(data),
+            f"Status: {status}, Response: {data}"
+        )
 
     def test_duplicate_registration(self):
         """Test duplicate email registration (should fail)"""
