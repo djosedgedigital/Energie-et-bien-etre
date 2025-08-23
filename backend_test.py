@@ -159,29 +159,20 @@ class HealthcareWellnessAPITester:
             f"Status: {status}, Response: {data}"
         )
 
-    def test_complete_quest(self):
-        """Test completing a quest"""
+    def test_complete_quest_without_access(self):
+        """Test completing a quest without paid access (should fail)"""
         if not self.token:
-            return self.log_test("Complete Quest", False, "No authentication token")
+            return self.log_test("Complete Quest (No Access)", False, "No authentication token")
         
-        if not self.quest_ids:
-            return self.log_test("Complete Quest", False, "No pending quests available")
+        # Use a dummy quest ID since we can't get real ones without access
+        dummy_quest_id = "dummy-quest-id"
+        success, status, data = self.make_request('POST', f'api/user-quests/{dummy_quest_id}/complete', {}, 403)
         
-        quest_id = self.quest_ids[0]  # Complete first pending quest
-        success, status, data = self.make_request('POST', f'api/user-quests/{quest_id}/complete', {}, 200)
-        
-        if success and 'points_earned' in data:
-            return self.log_test(
-                "Complete Quest", 
-                True,
-                f"Quest completed, earned {data['points_earned']} points"
-            )
-        else:
-            return self.log_test(
-                "Complete Quest", 
-                False,
-                f"Status: {status}, Response: {data}"
-            )
+        return self.log_test(
+            "Complete Quest (No Access)", 
+            success and "Paid access required" in str(data),
+            f"Status: {status}, Response: {data}"
+        )
 
     def test_dashboard_stats_without_access(self):
         """Test getting dashboard statistics without paid access (should fail)"""
