@@ -110,7 +110,7 @@ class UserQuest(BaseModel):
 class UserProgress(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     user_id: str
-    date: datetime = Field(default_factory=lambda: datetime.utcnow().date())
+    date: datetime = Field(default_factory=lambda: datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0))
     quests_completed: int = 0
     total_points: int = 0
     streak_days: int = 0
