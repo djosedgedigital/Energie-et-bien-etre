@@ -186,36 +186,60 @@ export default function Dashboard() {
     return null;
   };
 
-  // Access required screen
-  if (user && !user.has_paid_access) {
+  // Freemium upgrade banner component
+  const FreemiumBanner = () => {
+    if (user?.has_paid_access) return null;
+    
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
-          <Logo className="h-12 mx-auto mb-6" />
-          <h1 className="text-2xl font-bold text-[var(--color-primary)] mb-4">
-            Accès Premium Requis
-          </h1>
-          <p className="text-gray-600 mb-6">
-            Pour accéder aux fonctionnalités complètes d'Énergie & Bien-être™, un accès premium est nécessaire.
-          </p>
-          <div className="space-y-4">
-            <button 
-              onClick={() => router.push('/pricing')}
-              className="btn w-full"
-            >
-              Débloquer l'accès - 39€
-            </button>
-            <button 
-              onClick={handleLogout}
-              className="w-full px-4 py-2 text-gray-600 hover:text-gray-800"
-            >
-              Se déconnecter
-            </button>
+      <div className="bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] text-white p-4 m-4 rounded-lg shadow-lg">
+        <div className="flex flex-col lg:flex-row items-center justify-between">
+          <div className="mb-4 lg:mb-0">
+            <h3 className="text-lg font-bold mb-2">🚀 Débloquez votre potentiel bien-être !</h3>
+            <p className="text-sm opacity-90">
+              Vous utilisez la version gratuite. Passez Premium pour des quêtes illimitées, statistiques avancées et plus !
+            </p>
           </div>
+          <button 
+            onClick={() => router.push('/pricing')}
+            className="bg-white text-[var(--color-primary)] px-6 py-3 rounded-lg font-bold hover:shadow-lg transition-all"
+          >
+            Passer Premium - 39€
+          </button>
         </div>
       </div>
     );
-  }
+  };
+
+  // Quest completion limit banner
+  const QuestLimitBanner = () => {
+    if (user?.has_paid_access) return null;
+    
+    const completedToday = todayQuests.filter(q => q.status === "done").length;
+    const remainingCompletions = Math.max(0, 2 - completedToday);
+    
+    return (
+      <div className="bg-orange-50 border-l-4 border-orange-400 text-orange-700 p-4 mb-4 rounded">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-medium">
+              🎯 Version gratuite : {remainingCompletions} complétion{remainingCompletions !== 1 ? 's' : ''} restante{remainingCompletions !== 1 ? 's' : ''} aujourd'hui
+            </p>
+            <p className="text-sm mt-1">
+              Passez Premium pour des complétions illimitées et plus de quêtes !
+            </p>
+          </div>
+          {remainingCompletions === 0 && (
+            <button 
+              onClick={() => router.push('/pricing')}
+              className="ml-4 bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 text-sm"
+            >
+              Upgrader
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="flex min-h-screen bg-gray-50">
