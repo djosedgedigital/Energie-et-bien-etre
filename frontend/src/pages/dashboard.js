@@ -347,7 +347,7 @@ export default function Dashboard() {
       {/* Main content */}
       <main className="flex-1 p-4 lg:p-10 pt-16 lg:pt-10">
         <PaymentSuccessBanner />
-        <FreemiumBanner />
+        <DemoBanner />
         
         <h1 className="text-2xl lg:text-3xl font-bold text-[var(--color-primary)] mb-6">{active}</h1>
 
